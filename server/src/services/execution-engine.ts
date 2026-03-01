@@ -39,6 +39,67 @@ function stripProtectedFiles(files: Record<string, string>): Record<string, stri
   return cleaned
 }
 
+// Try to recover truncated JSON by closing open strings, arrays, and braces
+function recoverTruncatedJson(text: string): { templateId: string; description: string; files: Record<string, string> } | null {
+  const braceStart = text.indexOf('{')
+  if (braceStart < 0) return null
+
+  let json = text.slice(braceStart)
+
+  // If we're inside a string value, close it
+  // Count unescaped quotes to determine if we're inside a string
+  let inString = false
+  let lastKey = ''
+  for (let i = 0; i < json.length; i++) {
+    if (json[i] === '\\') { i++; continue }
+    if (json[i] === '"') inString = !inString
+  }
+  if (inString) {
+    // We're inside an unclosed string — truncate to last complete file entry
+    // Find the last complete "filepath": "content" pair
+    const lastCompleteFile = json.lastIndexOf('",\n')
+    const lastCompleteFile2 = json.lastIndexOf('"\n')
+    const cutPoint = Math.max(lastCompleteFile, lastCompleteFile2)
+    if (cutPoint > 0) {
+      json = json.slice(0, cutPoint + 1) // keep the closing "
+    } else {
+      json += '"'
+    }
+  }
+
+  // Close any open braces/brackets
+  let depth = 0
+  let arrayDepth = 0
+  let inStr = false
+  for (let i = 0; i < json.length; i++) {
+    if (json[i] === '\\') { i++; continue }
+    if (json[i] === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+    if (json[i] === '{') depth++
+    else if (json[i] === '}') depth--
+    else if (json[i] === '[') arrayDepth++
+    else if (json[i] === ']') arrayDepth--
+  }
+
+  // Remove trailing comma before closing
+  json = json.replace(/,\s*$/, '')
+
+  // Close arrays then braces
+  for (let i = 0; i < arrayDepth; i++) json += ']'
+  for (let i = 0; i < depth; i++) json += '}'
+
+  try {
+    const parsed = JSON.parse(json)
+    if (parsed.files && Object.keys(parsed.files).length > 0) {
+      console.log(`[Logic] Truncation recovery succeeded: ${Object.keys(parsed.files).length} files recovered`)
+      return parsed
+    }
+  } catch (e) {
+    console.error(`[Logic] Truncation recovery failed: ${(e as Error).message}`)
+  }
+  return null
+}
+
 // Helper: robustly extract Logic agent JSON from LLM output
 function extractLogicJson(text: string): { templateId: string; description: string; files: Record<string, string> } {
   // Try 1: code fence ```json ... ```
@@ -51,8 +112,6 @@ function extractLogicJson(text: string): { templateId: string; description: stri
   // Try 2: raw JSON parse
   try { return JSON.parse(text.trim()) } catch (e) {
     console.error(`[Logic] Raw parse error: ${(e as Error).message}`)
-    console.error(`[Logic] First 200 chars: ${text.trim().slice(0, 200)}`)
-    console.error(`[Logic] Last 200 chars: ${text.trim().slice(-200)}`)
   }
   // Try 3: find first { ... } block containing "templateId"
   const braceStart = text.indexOf('{')
@@ -70,10 +129,13 @@ function extractLogicJson(text: string): { templateId: string; description: stri
         if (parsed.templateId || parsed.files) return parsed
       } catch (e) {
         console.error(`[Logic] Brace parse error: ${(e as Error).message}`)
-        console.error(`[Logic] Brace candidate length: ${candidate.length}, full text length: ${text.length}`)
       }
     } else {
-      console.error(`[Logic] Brace matching failed: braces never close. depth=${depth} at end of text`)
+      console.log(`[Logic] JSON truncated (depth=${depth}), attempting recovery...`)
+      // Try 4: recover truncated JSON by closing open structures
+      const fenceContent = fenceMatch ? fenceMatch[1] : text
+      const recovered = recoverTruncatedJson(fenceContent)
+      if (recovered) return recovered
     }
   }
   throw new Error('Could not extract valid JSON from Logic output')

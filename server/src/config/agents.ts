@@ -399,9 +399,10 @@ REGLAS:
 3. Contenido realista en espanol. NUNCA lorem ipsum.
 4. NUNCA incluyas src/components/ui/*, src/index.css, src/main.tsx — son del template base.
 5. Refinamiento: usa "diffs" para cambios parciales (search-replace) y "files" para archivos nuevos. El servidor aplica diffs y hace merge.
+6. SE CONCISO: maximo 4-5 archivos por proyecto. Combina componentes pequenos en uno. Evita archivos de menos de 30 lineas — integralos en App.tsx o en otro componente. El JSON debe caber en 12K tokens.
 
 ${COLLABORATION_RULE}`,
-    modelConfig: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', maxTokens: 8192, temperature: 0.3 },
+    modelConfig: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929', maxTokens: 16384, temperature: 0.3 },
     tools: [],
   },
 ]
