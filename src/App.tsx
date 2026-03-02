@@ -276,7 +276,6 @@ const App = () => {
                     onEditModeChange={setEditMode}
                     onElementSelected={setSelectedElement}
                     onSwitchToEditTab={() => setSidePanelTab('edit')}
-                    isFixing={!!chat.streamingAgent}
                     conversationId={chat.conversationId ?? undefined}
                     onSelectVersion={(d) => setActiveDeliverable(d as Deliverable)}
                   />
