@@ -65,14 +65,14 @@ const SeniorSection = ({ onRegister }: SeniorSectionProps) => {
             Exclusivo de Plury
           </span>
           <h2 className="text-[32px] sm:text-[44px] md:text-[52px] font-bold tracking-[-0.04em] text-white mb-4 leading-[1.05]">
-            La IA llega al 90%.
+            Cuando la IA se estanca,
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-600">
-              Nosotros hacemos el 100%.
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+              un humano toma el control.
             </span>
           </h2>
           <p className="text-[16px] sm:text-[18px] text-zinc-400 max-w-xl mx-auto leading-[1.7]">
-            El problema de las herramientas No-Code de IA es cuando te estancas. En Plury, presionas un boton y un humano lo termina.
+            Seniors reales — developers, disenadores y estrategas — revisan, ajustan y entregan lo que la IA no pudo. Sin perder contexto. En 24-48 horas.
           </p>
         </div>
 
@@ -205,21 +205,6 @@ const SeniorSection = ({ onRegister }: SeniorSectionProps) => {
                   </div>
                 </div>
 
-                <div
-                  className="float-card absolute top-[35%] -left-2 sm:-left-5 bg-zinc-800/95 backdrop-blur-sm border border-zinc-700 p-3 rounded-2xl shadow-2xl shadow-black/60 flex items-center gap-3 z-20"
-                  style={{ opacity: 0 }}
-                >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
-                    <Palette size={15} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
-                      Luis R.
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    </p>
-                    <p className="text-[10px] text-zinc-400">Estratega SEO · Ads, Contenido</p>
-                  </div>
-                </div>
               </div>
             </div>
 

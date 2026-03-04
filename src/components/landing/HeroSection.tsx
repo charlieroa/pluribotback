@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ArrowRight, Zap, Users } from 'lucide-react'
+import { ArrowRight, Zap, Users, Check } from 'lucide-react'
 import gsap from 'gsap'
 
 interface HeroSectionProps {
@@ -27,14 +27,14 @@ const HeroSection = ({ onPromptClick }: HeroSectionProps) => {
       opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out', delay: 0.1,
     })
 
-    // Floating senior card — entrance + continuous float
+    // Floating card — entrance + continuous float
     if (floatRef.current) {
       gsap.fromTo(floatRef.current,
-        { opacity: 0, x: 30, y: 10, scale: 0.9 },
-        { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.8, ease: 'back.out(1.5)', delay: 1.2 }
+        { opacity: 0, x: 40, y: 15, scale: 0.85 },
+        { opacity: 1, x: 0, y: 0, scale: 1, duration: 1, ease: 'back.out(1.5)', delay: 1 }
       )
       gsap.to(floatRef.current, {
-        y: -8, duration: 3, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2,
+        y: -10, x: 3, duration: 3.5, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2,
       })
     }
   }, [])
@@ -52,28 +52,47 @@ const HeroSection = ({ onPromptClick }: HeroSectionProps) => {
       <div className="absolute top-[20%] left-[10%] w-[400px] h-[400px] bg-purple-600/[0.07] rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute top-[30%] right-[10%] w-[350px] h-[350px] bg-violet-500/[0.05] rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="relative z-10 max-w-[800px] mx-auto text-center">
+      <div className="relative z-10 max-w-[850px] mx-auto text-center">
         {/* Badge */}
         <div className="hero-anim inline-flex items-center gap-2 px-4 py-1.5 mb-7 rounded-full border border-purple-500/20 bg-purple-500/[0.08] text-[12.5px] font-medium text-purple-300">
           <Zap size={13} className="text-purple-400" />
           Agentes de IA trabajando para ti
         </div>
 
-        {/* Headline — THE MAIN MESSAGE */}
-        <h1 className="hero-anim text-[40px] sm:text-[56px] md:text-[68px] font-extrabold leading-[1.05] tracking-[-0.04em] text-white mb-6">
-          La IA llega al 90%.
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a855f7] to-[#6d28d9]">Nosotros hacemos el 100%.</span>
-        </h1>
+        {/* Headline — with floating card embedded */}
+        <div className="hero-anim relative inline-block">
+          <h1 className="text-[40px] sm:text-[56px] md:text-[68px] font-extrabold leading-[1.05] tracking-[-0.04em] text-white mb-6">
+            La IA llega al 90%.
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a855f7] to-[#6d28d9]">Nosotros hacemos el 100%.</span>
+          </h1>
+
+          {/* Floating senior card — positioned inside the headline area */}
+          <div
+            ref={floatRef}
+            style={{ opacity: 0 }}
+            className="absolute -right-6 sm:-right-16 md:-right-24 top-0 sm:-top-2 hidden sm:flex items-center gap-2.5 bg-zinc-800/95 backdrop-blur-md border border-zinc-700/80 px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/60 z-30 rotate-[4deg]"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+              <Users size={15} className="text-white" />
+            </div>
+            <div>
+              <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
+                ¿La IA no alcanzo?
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </p>
+              <p className="text-[10px] text-zinc-400">Senior humano en 24h</p>
+            </div>
+          </div>
+        </div>
 
         {/* Subtitle */}
         <p className="hero-anim text-[16px] sm:text-[19px] text-zinc-400 leading-[1.65] max-w-[620px] mx-auto mb-10">
-          Webs, apps, branding, SEO, ads y video — todo desde un chat.
-          Y cuando la IA no alcanza, un <span className="text-white font-medium">senior humano</span> lo termina por ti.
+          El problema de las herramientas No-Code de IA es cuando te estancas. En Plury, presionas un boton y un <span className="text-white font-medium">senior humano</span> lo termina.
         </p>
 
         {/* Input box */}
-        <div className="hero-anim max-w-[600px] mx-auto mb-6 relative">
+        <div className="hero-anim max-w-[600px] mx-auto mb-6">
           <div className="relative group">
             <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 via-violet-500/30 to-purple-500/40 rounded-2xl blur-sm opacity-60 group-focus-within:opacity-100 transition-opacity duration-500" />
             <div className="relative bg-[#111113] border border-white/[0.1] rounded-2xl shadow-2xl">
@@ -93,24 +112,6 @@ const HeroSection = ({ onPromptClick }: HeroSectionProps) => {
                   Crear <ArrowRight size={14} />
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* Floating senior card — right side of input */}
-          <div
-            ref={floatRef}
-            style={{ opacity: 0 }}
-            className="absolute -right-4 sm:-right-44 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-2.5 bg-zinc-800/90 backdrop-blur-sm border border-zinc-700 px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/50 z-30"
-          >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-              <Users size={14} className="text-white" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                Senior disponible
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              </p>
-              <p className="text-[9.5px] text-zinc-400">Humano real si la IA no alcanza</p>
             </div>
           </div>
         </div>
