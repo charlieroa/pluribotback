@@ -4,6 +4,7 @@ import HeroSection from './HeroSection'
 import CompaniesBar from './CompaniesBar'
 import HowItWorksSection from './HowItWorksSection'
 import FeaturesSection from './FeaturesSection'
+import SeniorSection from './SeniorSection'
 import AgencySection from './AgencySection'
 import TestimonialsSection from './TestimonialsSection'
 import ShowcaseSection from './ShowcaseSection'
@@ -41,6 +42,7 @@ const LandingPage = () => {
         <CompaniesBar />
         <HowItWorksSection />
         <FeaturesSection />
+        <SeniorSection onRegister={openRegister} />
         <AgencySection onRegister={openRegister} />
         <TestimonialsSection />
         <ShowcaseSection />
