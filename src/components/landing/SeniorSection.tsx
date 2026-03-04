@@ -94,99 +94,78 @@ const SeniorSection = ({ onRegister }: SeniorSectionProps) => {
                     <span className="ml-2 text-[11px] text-zinc-600 font-medium">E-commerce — Tienda de ropa</span>
                   </div>
 
-                  <div className="p-4 sm:p-5 space-y-3.5">
-                    {/* User message 1 */}
-                    <div className="flex items-start gap-2.5 justify-end">
-                      <div className="bg-[#7c3aed]/20 border border-[#7c3aed]/20 rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-[12px] text-zinc-200 leading-[1.6] max-w-[82%]">
-                        Necesito un e-commerce con carrito, pasarela de pago Stripe y login con Google
+                  <div className="p-4 sm:p-5 space-y-3">
+                    {/* User message */}
+                    <div className="flex items-start gap-2 justify-end">
+                      <div className="bg-[#7c3aed]/20 border border-[#7c3aed]/20 rounded-2xl rounded-tr-sm px-3 py-2 text-[11.5px] text-zinc-200 leading-[1.55] max-w-[82%]">
+                        E-commerce con carrito, Stripe y login Google
                       </div>
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">T</div>
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0">T</div>
                     </div>
 
-                    {/* Bot — working on it */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                        <Bot size={14} className="text-white" />
+                    {/* Bot — completed tasks */}
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                        <Bot size={12} className="text-white" />
                       </div>
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-400 leading-[1.6] max-w-[82%]">
-                        <span className="text-purple-400 font-medium">Pixel</span> esta trabajando en tu tienda...
-                        <div className="mt-2 space-y-1.5">
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Catalogo con filtros y busqueda</div>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Carrito con persistencia local</div>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Login con Google OAuth</div>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Pagina de checkout responsive</div>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Deploy en tu-tienda.plury.co</div>
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3 py-2 text-[11.5px] text-zinc-400 leading-[1.55] max-w-[82%]">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400"><Check size={10} /> Catalogo con filtros</div>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400"><Check size={10} /> Carrito + checkout</div>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400"><Check size={10} /> Login Google OAuth</div>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400"><Check size={10} /> Deploy en tu-tienda.plury.co</div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Bot — delivered but flagging */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                        <Bot size={14} className="text-white" />
+                    {/* Bot — flag */}
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                        <Bot size={12} className="text-white" />
                       </div>
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-300 leading-[1.6] max-w-[82%]">
-                        <div className="flex items-center gap-1.5 text-amber-400 text-[11px] font-semibold mb-1.5">
-                          <Shield size={12} /> Requiere intervencion
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3 py-2 text-[11.5px] text-zinc-300 leading-[1.55] max-w-[82%]">
+                        <div className="flex items-center gap-1.5 text-amber-400 text-[10.5px] font-semibold mb-1">
+                          <Shield size={11} /> Requiere intervencion
                         </div>
-                        Tu tienda esta live pero la integracion con Stripe requiere webhooks, logica de servidor y validacion 3D Secure. Recomiendo revision senior.
+                        Stripe necesita webhooks y 3D Secure. Recomiendo senior.
                       </div>
-                    </div>
-
-                    {/* User asks for help */}
-                    <div className="flex items-start gap-2.5 justify-end">
-                      <div className="bg-[#7c3aed]/20 border border-[#7c3aed]/20 rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-[12px] text-zinc-200 leading-[1.6] max-w-[82%]">
-                        Dale, pasalo a un senior
-                      </div>
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">T</div>
                     </div>
 
                     {/* CTA button */}
-                    <div className="pl-9">
-                      <div className="bg-white text-black font-semibold rounded-xl text-[12px] py-2.5 px-4 flex justify-between items-center">
-                        <span>Solicitar intervencion humana</span>
-                        <Users size={14} />
+                    <div className="pl-8">
+                      <div className="bg-white text-black font-semibold rounded-xl text-[11.5px] py-2 px-3.5 flex justify-between items-center">
+                        Solicitar intervencion humana
+                        <Users size={13} />
                       </div>
                     </div>
 
-                    {/* Divider — senior assigned */}
-                    <div className="flex items-center gap-3 py-1">
+                    {/* Divider */}
+                    <div className="flex items-center gap-2">
                       <div className="flex-1 h-px bg-zinc-800" />
-                      <span className="text-[10px] text-blue-400/70 font-medium px-2">Senior asignado · hace 3 min</span>
+                      <span className="text-[9.5px] text-blue-400/70 font-medium">Senior asignado</span>
                       <div className="flex-1 h-px bg-zinc-800" />
-                    </div>
-
-                    {/* Senior takes context */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">JD</div>
-                      <div className="bg-blue-500/10 border border-blue-500/15 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-300 leading-[1.6] max-w-[82%]">
-                        <div className="text-blue-400 text-[11px] font-semibold mb-1">Juan D. · Senior Developer</div>
-                        Hola, ya revise todo el contexto. Voy a integrar Stripe con webhooks para pagos, suscripciones y reembolsos. Dame unas horas.
-                      </div>
                     </div>
 
                     {/* Senior delivers */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">JD</div>
-                      <div className="bg-blue-500/10 border border-blue-500/15 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-300 leading-[1.6] max-w-[82%]">
-                        <div className="text-blue-400 text-[11px] font-semibold mb-1">Juan D. · Senior Developer</div>
-                        Listo. Stripe integrado con:
-                        <div className="mt-1.5 space-y-1">
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Webhooks de pago</div>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Validacion 3D Secure</div>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Reembolsos automaticos</div>
-                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Emails de confirmacion</div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0">JD</div>
+                      <div className="bg-blue-500/10 border border-blue-500/15 rounded-2xl rounded-tl-sm px-3 py-2 text-[11.5px] text-zinc-300 leading-[1.55] max-w-[82%]">
+                        <div className="text-blue-400 text-[10.5px] font-semibold mb-1">Juan D. · Senior Dev</div>
+                        Stripe listo:
+                        <div className="mt-1 space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400"><Check size={10} /> Webhooks + 3D Secure</div>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400"><Check size={10} /> Reembolsos y confirmaciones</div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Delivery confirmation */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0">
-                        <Check size={13} className="text-white" />
+                    {/* Completed */}
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0">
+                        <Check size={11} className="text-white" />
                       </div>
-                      <div className="bg-emerald-500/10 border border-emerald-500/15 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-emerald-300 leading-[1.6] max-w-[82%]">
-                        <span className="font-semibold">Tarea completada</span> — Entregado en 14 horas. Tu e-commerce esta live con pagos funcionales.
+                      <div className="bg-emerald-500/10 border border-emerald-500/15 rounded-2xl rounded-tl-sm px-3 py-2 text-[11.5px] text-emerald-300 leading-[1.55] max-w-[82%]">
+                        <span className="font-semibold">Completada</span> — Entregado en 14h. Pagos funcionales.
                       </div>
                     </div>
                   </div>
