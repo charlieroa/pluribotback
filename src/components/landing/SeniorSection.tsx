@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Bot, Users, CheckCircle, ArrowRight, Clock, Shield, Check, Palette } from 'lucide-react'
+import { Bot, Users, CheckCircle, ArrowRight, Clock, Shield, Check, Palette, Code2, Image } from 'lucide-react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -23,52 +23,228 @@ const SeniorSection = ({ onRegister }: SeniorSectionProps) => {
       scrollTrigger: { trigger: el, start: 'top 75%', scroller: '#landing-scroll' },
     })
 
-    // Floating cards staggered entrance
+    // Floating cards — staggered entrance + continuous float
     const floats = el.querySelectorAll('.float-card')
-    const floatAnim = gsap.fromTo(floats,
-      { opacity: 0, y: 25, scale: 0.85 },
+    const floatEntrance = gsap.fromTo(floats,
+      { opacity: 0, y: 30, scale: 0.85 },
       {
         opacity: 1, y: 0, scale: 1,
-        duration: 0.7, stagger: 0.25, ease: 'back.out(1.7)',
+        duration: 0.7, stagger: 0.3, ease: 'back.out(1.7)',
         scrollTrigger: { trigger: mockupRef.current, start: 'top 65%', scroller: '#landing-scroll' },
+        onComplete: () => {
+          // After entrance, start floating animation on each card
+          floats.forEach((card, i) => {
+            gsap.to(card, {
+              y: 'random(-8, 8)',
+              x: 'random(-4, 4)',
+              duration: 'random(2.5, 4)',
+              repeat: -1,
+              yoyo: true,
+              ease: 'sine.inOut',
+              delay: i * 0.3,
+            })
+          })
+        },
       }
     )
 
     return () => {
       anim.kill()
-      floatAnim.kill()
+      floatEntrance.kill()
+      gsap.killTweensOf(floats)
     }
   }, [])
 
   return (
     <section ref={sectionRef} id="seniors" className="py-20 sm:py-28 px-4">
       <div className="max-w-[1100px] mx-auto">
-        <div className="senior-anim relative bg-zinc-900/50 border border-zinc-800 rounded-[2rem] p-8 md:p-14 overflow-hidden">
+        {/* Section title - centered above the card */}
+        <div className="senior-anim text-center mb-12">
+          <span className="inline-flex items-center gap-2 px-3 py-1 text-[11px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded-full uppercase tracking-wider mb-4">
+            Exclusivo de Plury
+          </span>
+          <h2 className="text-[32px] sm:text-[44px] md:text-[52px] font-bold tracking-[-0.04em] text-white mb-4 leading-[1.05]">
+            La IA llega al 90%.
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-600">
+              Nosotros hacemos el 100%.
+            </span>
+          </h2>
+          <p className="text-[16px] sm:text-[18px] text-zinc-400 max-w-xl mx-auto leading-[1.7]">
+            El problema de las herramientas No-Code de IA es cuando te estancas. En Plury, presionas un boton y un humano lo termina.
+          </p>
+        </div>
+
+        {/* Main content card */}
+        <div className="senior-anim relative bg-zinc-900/50 border border-zinc-800 rounded-[2rem] p-6 sm:p-8 md:p-12 overflow-hidden">
           {/* Background accents */}
           <div className="absolute left-0 top-0 w-1/3 h-full bg-gradient-to-r from-blue-900/10 to-transparent pointer-events-none" />
           <div className="absolute right-0 bottom-0 w-1/3 h-full bg-gradient-to-l from-purple-900/10 to-transparent pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col lg:flex-row items-start gap-12 lg:gap-14">
-            {/* Left - copy */}
-            <div className="w-full lg:w-[45%]">
-              <div className="senior-anim flex items-center gap-2 mb-6">
-                <span className="px-3 py-1 text-[11px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded-full uppercase tracking-wider">
-                  Exclusivo de Plury
-                </span>
+          <div className="relative z-10 flex flex-col lg:flex-row items-start gap-10 lg:gap-12">
+            {/* Left — conversation mockup */}
+            <div ref={mockupRef} className="w-full lg:w-[55%] senior-anim order-2 lg:order-1">
+              <div className="relative">
+                <div className="bg-[#0A0A0A] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+                  {/* Window chrome */}
+                  <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-800/80 bg-zinc-900/50">
+                    <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                    <span className="ml-2 text-[11px] text-zinc-600 font-medium">E-commerce — Tienda de ropa</span>
+                  </div>
+
+                  <div className="p-4 sm:p-5 space-y-3.5">
+                    {/* User message 1 */}
+                    <div className="flex items-start gap-2.5 justify-end">
+                      <div className="bg-[#7c3aed]/20 border border-[#7c3aed]/20 rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-[12px] text-zinc-200 leading-[1.6] max-w-[82%]">
+                        Necesito un e-commerce con carrito, pasarela de pago Stripe y login con Google
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">T</div>
+                    </div>
+
+                    {/* Bot — working on it */}
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                        <Bot size={14} className="text-white" />
+                      </div>
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-400 leading-[1.6] max-w-[82%]">
+                        <span className="text-purple-400 font-medium">Pixel</span> esta trabajando en tu tienda...
+                        <div className="mt-2 space-y-1.5">
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Catalogo con filtros y busqueda</div>
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Carrito con persistencia local</div>
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Login con Google OAuth</div>
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Pagina de checkout responsive</div>
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Deploy en tu-tienda.plury.co</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bot — delivered but flagging */}
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                        <Bot size={14} className="text-white" />
+                      </div>
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-300 leading-[1.6] max-w-[82%]">
+                        <div className="flex items-center gap-1.5 text-amber-400 text-[11px] font-semibold mb-1.5">
+                          <Shield size={12} /> Requiere intervencion
+                        </div>
+                        Tu tienda esta live pero la integracion con Stripe requiere webhooks, logica de servidor y validacion 3D Secure. Recomiendo revision senior.
+                      </div>
+                    </div>
+
+                    {/* User asks for help */}
+                    <div className="flex items-start gap-2.5 justify-end">
+                      <div className="bg-[#7c3aed]/20 border border-[#7c3aed]/20 rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-[12px] text-zinc-200 leading-[1.6] max-w-[82%]">
+                        Dale, pasalo a un senior
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">T</div>
+                    </div>
+
+                    {/* CTA button */}
+                    <div className="pl-9">
+                      <div className="bg-white text-black font-semibold rounded-xl text-[12px] py-2.5 px-4 flex justify-between items-center">
+                        <span>Solicitar intervencion humana</span>
+                        <Users size={14} />
+                      </div>
+                    </div>
+
+                    {/* Divider — senior assigned */}
+                    <div className="flex items-center gap-3 py-1">
+                      <div className="flex-1 h-px bg-zinc-800" />
+                      <span className="text-[10px] text-blue-400/70 font-medium px-2">Senior asignado · hace 3 min</span>
+                      <div className="flex-1 h-px bg-zinc-800" />
+                    </div>
+
+                    {/* Senior takes context */}
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">JD</div>
+                      <div className="bg-blue-500/10 border border-blue-500/15 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-300 leading-[1.6] max-w-[82%]">
+                        <div className="text-blue-400 text-[11px] font-semibold mb-1">Juan D. · Senior Developer</div>
+                        Hola, ya revise todo el contexto. Voy a integrar Stripe con webhooks para pagos, suscripciones y reembolsos. Dame unas horas.
+                      </div>
+                    </div>
+
+                    {/* Senior delivers */}
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">JD</div>
+                      <div className="bg-blue-500/10 border border-blue-500/15 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-zinc-300 leading-[1.6] max-w-[82%]">
+                        <div className="text-blue-400 text-[11px] font-semibold mb-1">Juan D. · Senior Developer</div>
+                        Listo. Stripe integrado con:
+                        <div className="mt-1.5 space-y-1">
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Webhooks de pago</div>
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Validacion 3D Secure</div>
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Reembolsos automaticos</div>
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-400"><Check size={11} /> Emails de confirmacion</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delivery confirmation */}
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0">
+                        <Check size={13} className="text-white" />
+                      </div>
+                      <div className="bg-emerald-500/10 border border-emerald-500/15 rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] text-emerald-300 leading-[1.6] max-w-[82%]">
+                        <span className="font-semibold">Tarea completada</span> — Entregado en 14 horas. Tu e-commerce esta live con pagos funcionales.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating team cards — animated entrance + continuous floating */}
+                <div
+                  className="float-card absolute -bottom-5 -right-2 sm:-right-6 bg-zinc-800/95 backdrop-blur-sm border border-zinc-700 p-3 rounded-2xl shadow-2xl shadow-black/60 flex items-center gap-3 z-20"
+                  style={{ opacity: 0 }}
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                    <Code2 size={15} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
+                      Juan D.
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    </p>
+                    <p className="text-[10px] text-zinc-400">Senior Dev · Stripe, APIs, Node</p>
+                  </div>
+                </div>
+
+                <div
+                  className="float-card absolute -top-5 -right-2 sm:-right-5 bg-zinc-800/95 backdrop-blur-sm border border-zinc-700 p-3 rounded-2xl shadow-2xl shadow-black/60 flex items-center gap-3 z-20"
+                  style={{ opacity: 0 }}
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center flex-shrink-0">
+                    <Image size={15} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
+                      Maria C.
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    </p>
+                    <p className="text-[10px] text-zinc-400">Senior Designer · UI/UX, Figma</p>
+                  </div>
+                </div>
+
+                <div
+                  className="float-card absolute top-[35%] -left-2 sm:-left-5 bg-zinc-800/95 backdrop-blur-sm border border-zinc-700 p-3 rounded-2xl shadow-2xl shadow-black/60 flex items-center gap-3 z-20"
+                  style={{ opacity: 0 }}
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                    <Palette size={15} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
+                      Luis R.
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    </p>
+                    <p className="text-[10px] text-zinc-400">Estratega SEO · Ads, Contenido</p>
+                  </div>
+                </div>
               </div>
+            </div>
 
-              <h2 className="senior-anim text-[32px] sm:text-[44px] md:text-[52px] font-bold tracking-[-0.04em] text-white mb-5 leading-[1.05]">
-                La IA llega al 90%.
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-600">
-                  Nosotros hacemos el 100%.
-                </span>
-              </h2>
-
-              <p className="senior-anim text-[16px] text-zinc-400 mb-8 max-w-md leading-[1.7]">
-                El problema de las herramientas No-Code de IA es cuando te estancas. En Plury, si la IA no logra exactamente lo que tienes en mente, presionas un boton y un humano lo termina.
-              </p>
-
+            {/* Right — copy + tiers */}
+            <div className="w-full lg:w-[45%] order-1 lg:order-2">
               {/* Features list */}
               <div className="senior-anim space-y-5 border-l-2 border-zinc-800 pl-5 mb-10">
                 <div>
@@ -98,13 +274,13 @@ const SeniorSection = ({ onRegister }: SeniorSectionProps) => {
                   { name: 'Pro', price: '$349', sla: '24h', tasks: '2 tareas', popular: true },
                   { name: 'Dedicado', price: '$799', sla: '24h', tasks: '5 tareas' },
                 ].map((tier, i) => (
-                  <div key={i} className={`relative rounded-xl p-4 text-center ${tier.popular ? 'bg-purple-500/[0.08] border border-purple-500/20' : 'bg-white/[0.03] border border-white/[0.06]'}`}>
+                  <div key={i} className={`relative rounded-xl p-3.5 text-center ${tier.popular ? 'bg-purple-500/[0.08] border border-purple-500/20' : 'bg-white/[0.03] border border-white/[0.06]'}`}>
                     {tier.popular && <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-bold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full uppercase">Popular</span>}
-                    <p className="text-[13px] font-semibold text-white">{tier.name}</p>
-                    <p className="text-[22px] font-bold text-white tracking-[-0.02em]">{tier.price}<span className="text-[11px] text-zinc-500 font-normal">/mes</span></p>
-                    <div className="flex items-center justify-center gap-1.5 mt-1.5">
-                      <Clock size={11} className="text-zinc-500" />
-                      <span className="text-[11px] text-zinc-500">SLA {tier.sla} · {tier.tasks}</span>
+                    <p className="text-[12px] font-semibold text-white">{tier.name}</p>
+                    <p className="text-[20px] font-bold text-white tracking-[-0.02em]">{tier.price}<span className="text-[10px] text-zinc-500 font-normal">/mes</span></p>
+                    <div className="flex items-center justify-center gap-1.5 mt-1">
+                      <Clock size={10} className="text-zinc-500" />
+                      <span className="text-[10px] text-zinc-500">SLA {tier.sla} · {tier.tasks}</span>
                     </div>
                   </div>
                 ))}
@@ -116,139 +292,6 @@ const SeniorSection = ({ onRegister }: SeniorSectionProps) => {
               >
                 Activar Senior <ArrowRight size={15} />
               </button>
-            </div>
-
-            {/* Right - Full conversation mockup */}
-            <div ref={mockupRef} className="w-full lg:w-[55%] senior-anim">
-              <div className="relative">
-                <div className="bg-[#0A0A0A] border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
-                  {/* Mockup header */}
-                  <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-800/80 bg-zinc-900/50">
-                    <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                    <span className="ml-2 text-[11px] text-zinc-600 font-medium">E-commerce — Tienda de ropa</span>
-                  </div>
-
-                  <div className="p-5 space-y-4">
-                    {/* User message */}
-                    <div className="flex items-start gap-2.5 justify-end">
-                      <div className="bg-[#7c3aed]/20 border border-[#7c3aed]/20 rounded-2xl rounded-tr-sm px-4 py-2.5 text-[12.5px] text-zinc-200 leading-[1.6] max-w-[85%]">
-                        Necesito un e-commerce con carrito, pasarela de pago Stripe y login con Google
-                      </div>
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">T</div>
-                    </div>
-
-                    {/* Bot response 1 - success */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                        <Bot size={14} className="text-white" />
-                      </div>
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-2.5 text-[12.5px] text-zinc-300 leading-[1.6] max-w-[85%]">
-                        <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-semibold mb-1">
-                          <Check size={12} /> Completado
-                        </div>
-                        Catalogo con filtros, carrito con persistencia y login con Google listos. El sitio ya esta desplegado.
-                      </div>
-                    </div>
-
-                    {/* Bot response 2 - partial */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                        <Bot size={14} className="text-white" />
-                      </div>
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-2.5 text-[12.5px] text-zinc-300 leading-[1.6] max-w-[85%]">
-                        <div className="flex items-center gap-1.5 text-amber-400 text-[11px] font-semibold mb-1">
-                          <Shield size={12} /> Requiere intervencion
-                        </div>
-                        La integracion con Stripe requiere configuracion de webhooks y logica de servidor custom. Recomiendo revision senior.
-                      </div>
-                    </div>
-
-                    {/* CTA button */}
-                    <div className="pl-9">
-                      <div className="bg-white text-black font-semibold rounded-xl text-[12.5px] py-2.5 px-4 flex justify-between items-center">
-                        <span>Solicitar intervencion humana</span>
-                        <Users size={14} />
-                      </div>
-                      <p className="text-[10px] text-center text-zinc-600 mt-1.5">Cubierto bajo tu plan Senior.</p>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="flex items-center gap-3 py-1">
-                      <div className="flex-1 h-px bg-zinc-800" />
-                      <span className="text-[10px] text-zinc-600 font-medium">Senior asignado</span>
-                      <div className="flex-1 h-px bg-zinc-800" />
-                    </div>
-
-                    {/* Senior human message */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">JD</div>
-                      <div className="bg-blue-500/10 border border-blue-500/15 rounded-2xl rounded-tl-sm px-4 py-2.5 text-[12.5px] text-zinc-200 leading-[1.6] max-w-[85%]">
-                        <div className="flex items-center gap-1.5 text-blue-400 text-[11px] font-semibold mb-1">
-                          Juan D. · Senior Developer
-                        </div>
-                        Stripe integrado con webhooks para pagos, suscripciones y reembolsos. Tambien agregue validacion 3D Secure. Tu tienda esta lista para vender.
-                      </div>
-                    </div>
-
-                    {/* Delivery confirmation */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0">
-                        <Check size={13} className="text-white" />
-                      </div>
-                      <div className="bg-emerald-500/10 border border-emerald-500/15 rounded-2xl rounded-tl-sm px-4 py-2.5 text-[12.5px] text-emerald-300 leading-[1.6] max-w-[85%]">
-                        <span className="font-semibold">Tarea completada</span> — Entregado en 18 horas. Tu sitio esta live con pagos funcionales.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Floating cards - animated staggered entrance */}
-                <div
-                  className="float-card absolute -bottom-4 -right-3 sm:-right-5 bg-zinc-800 border border-zinc-700 p-3 rounded-2xl shadow-2xl shadow-black/60 flex items-center gap-3"
-                  style={{ opacity: 0 }}
-                >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white text-[11px]">JD</div>
-                  <div>
-                    <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
-                      Juan D. — Senior Dev
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    </p>
-                    <p className="text-[10px] text-zinc-400">Full-stack · Stripe, APIs, Infra</p>
-                  </div>
-                </div>
-
-                <div
-                  className="float-card absolute -top-4 -right-3 sm:-right-5 bg-zinc-800 border border-zinc-700 p-3 rounded-2xl shadow-2xl shadow-black/60 flex items-center gap-3"
-                  style={{ opacity: 0 }}
-                >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center font-bold text-white text-[11px]">MC</div>
-                  <div>
-                    <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
-                      Maria C. — Senior Designer
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    </p>
-                    <p className="text-[10px] text-zinc-400">UI/UX · Branding · Figma</p>
-                  </div>
-                </div>
-
-                <div
-                  className="float-card absolute top-[40%] -left-3 sm:-left-5 bg-zinc-800 border border-zinc-700 p-3 rounded-2xl shadow-2xl shadow-black/60 flex items-center gap-3"
-                  style={{ opacity: 0 }}
-                >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center font-bold text-white text-[11px]">
-                    <Palette size={14} />
-                  </div>
-                  <div>
-                    <p className="text-[12px] font-bold text-white flex items-center gap-1.5">
-                      Luis R. — Estratega SEO
-                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                    </p>
-                    <p className="text-[10px] text-zinc-400">SEO tecnico · Contenido · Ads</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
