@@ -6,6 +6,8 @@ import WelcomeScreen from './WelcomeScreen'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
 import ThinkingBox from './ThinkingBox'
+import { CompactPipeline } from '../workflow/PipelineView'
+import type { PipelineStep } from '../workflow/PipelineView'
 
 interface ChatViewProps {
   messages: Message[]
@@ -321,6 +323,19 @@ const WorkingChecklist = ({ agents, thinkingSteps, activeAgents }: { agents: Coo
       <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes checkPop { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
 .check-pop { animation: checkPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }`}</style>
+
+      {/* Pipeline node view — compact visual representation */}
+      {planItems.length > 0 && (
+        <CompactPipeline
+          steps={planItems.map((item): PipelineStep => ({
+            agentId: item.agentId,
+            agentName: item.agentName,
+            instanceId: item.instanceId,
+            task: item.task,
+            status: item.status === 'done' ? 'complete' : item.status === 'working' ? 'running' : 'pending',
+          }))}
+        />
+      )}
 
       {/* Fallback when no agents yet */}
       {agents.length === 0 && activeAgents.length === 0 && (
