@@ -25,10 +25,21 @@ async function captureScreenshot(siteUrl: string, deliverableId: string): Promis
       fs.mkdirSync(THUMBNAILS_DIR, { recursive: true })
     }
 
-    // Wait a bit for the site to be accessible
-    await new Promise(r => setTimeout(r, 3000))
+    // Wait for the site to be accessible (code projects need time to boot React/Babel/deps)
+    await new Promise(r => setTimeout(r, 5000))
 
-    const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(siteUrl)}&screenshot=true&meta=false&viewport.width=1280&viewport.height=800&waitForTimeout=5000`
+    // waitUntil: networkidle0 ensures all resources (fonts, images, scripts) are loaded
+    // waitForTimeout: generous wait for code projects that boot React+Babel+deps
+    const params = new URLSearchParams({
+      url: siteUrl,
+      screenshot: 'true',
+      meta: 'false',
+      'viewport.width': '1280',
+      'viewport.height': '800',
+      waitUntil: 'networkidle0',
+      waitForTimeout: '10000',
+    })
+    const apiUrl = `https://api.microlink.io/?${params.toString()}`
     const resp = await fetch(apiUrl)
     if (!resp.ok) {
       console.error(`[Screenshot] Microlink API error: ${resp.status}`)

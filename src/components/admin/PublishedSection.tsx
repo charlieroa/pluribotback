@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Globe, Trash2, Eye, EyeOff, ExternalLink, Search, RefreshCw } from 'lucide-react'
+import { Globe, Trash2, Eye, EyeOff, ExternalLink, Search, RefreshCw, Camera } from 'lucide-react'
 
 interface PublishedSite {
   id: string
@@ -23,6 +23,7 @@ const PublishedSection = () => {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [recapturing, setRecapturing] = useState<string | null>(null)
 
   const getAuthHeaders = (): Record<string, string> => {
     const token = localStorage.getItem('plury_token')
@@ -67,6 +68,23 @@ const PublishedSection = () => {
         setConfirmDelete(null)
       }
     } catch {}
+  }
+
+  const recaptureScreenshot = async (id: string) => {
+    setRecapturing(id)
+    try {
+      const res = await fetch(`/api/admin/published/${id}/screenshot`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.thumbnailUrl) {
+          setSites(prev => prev.map(s => s.id === id ? { ...s, thumbnailUrl: data.thumbnailUrl + '?t=' + Date.now() } : s))
+        }
+      }
+    } catch {}
+    setRecapturing(null)
   }
 
   const filtered = sites.filter(s => {
@@ -175,6 +193,16 @@ const PublishedSection = () => {
 
               {/* Actions */}
               <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => recaptureScreenshot(site.id)}
+                  disabled={recapturing === site.id}
+                  className="p-2 rounded-lg text-ink-faint hover:bg-subtle transition-colors disabled:opacity-50"
+                  title="Recapturar screenshot"
+                >
+                  {recapturing === site.id
+                    ? <RefreshCw size={16} className="animate-spin" />
+                    : <Camera size={16} />}
+                </button>
                 <button
                   onClick={() => togglePublic(site.id, !site.isPublic)}
                   className={`p-2 rounded-lg transition-colors ${

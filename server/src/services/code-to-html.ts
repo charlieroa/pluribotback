@@ -335,6 +335,9 @@ ${depLoadLines}
       // Execute
       const fn = new Function(code)
       fn()
+
+      // Signal that the app has rendered (used by screenshot capture)
+      document.getElementById('root').dataset.rendered = 'true'
     }
     boot().catch(e => {
       console.error('[Plury] Boot error:', e)
@@ -342,6 +345,7 @@ ${depLoadLines}
         '<div style="padding:2rem;font-family:system-ui;color:#ef4444">' +
         '<h2>Error cargando la aplicacion</h2>' +
         '<pre style="margin-top:1rem;font-size:0.85rem;color:#94a3b8;white-space:pre-wrap">' + e.message + '</pre></div>'
+      document.getElementById('root').dataset.rendered = 'true'
     })
   </script>
 </body>

@@ -1095,6 +1095,79 @@ router.get('/published', adminAuth, async (_req, res) => {
   }
 })
 
+router.post('/published/:id/screenshot', adminAuth, async (req, res) => {
+  try {
+    const id = req.params.id as string
+    const deliverable = await prisma.deliverable.findUnique({
+      where: { id },
+      select: { id: true, publishSlug: true },
+    })
+    if (!deliverable?.publishSlug) {
+      res.status(404).json({ error: 'Sitio no encontrado' })
+      return
+    }
+
+    const APP_DOMAIN = process.env.APP_DOMAIN || 'plury.co'
+    const siteUrl = `https://${deliverable.publishSlug}.${APP_DOMAIN}`
+
+    // Capture screenshot synchronously (admin waits for result)
+    const fs = await import('fs')
+    const pathMod = await import('path')
+    const { fileURLToPath } = await import('url')
+    const fname = fileURLToPath(import.meta.url)
+    const dname = pathMod.dirname(fname)
+    const THUMBNAILS_DIR = pathMod.resolve(dname, '../../uploads/thumbnails')
+
+    if (!fs.existsSync(THUMBNAILS_DIR)) {
+      fs.mkdirSync(THUMBNAILS_DIR, { recursive: true })
+    }
+
+    const params = new URLSearchParams({
+      url: siteUrl,
+      screenshot: 'true',
+      meta: 'false',
+      'viewport.width': '1280',
+      'viewport.height': '800',
+      waitUntil: 'networkidle0',
+      waitForTimeout: '10000',
+    })
+    const apiResp = await fetch(`https://api.microlink.io/?${params.toString()}`)
+    if (!apiResp.ok) {
+      res.status(502).json({ error: 'Microlink API error' })
+      return
+    }
+
+    const data = await apiResp.json() as { data?: { screenshot?: { url?: string } } }
+    const screenshotUrl = data.data?.screenshot?.url
+    if (!screenshotUrl) {
+      res.status(502).json({ error: 'No se pudo capturar screenshot' })
+      return
+    }
+
+    const imgResp = await fetch(screenshotUrl)
+    if (!imgResp.ok) {
+      res.status(502).json({ error: 'No se pudo descargar la imagen' })
+      return
+    }
+
+    const buffer = Buffer.from(await imgResp.arrayBuffer())
+    const filename = `${id}.png`
+    fs.writeFileSync(pathMod.join(THUMBNAILS_DIR, filename), buffer)
+
+    const thumbnailUrl = `/uploads/thumbnails/${filename}`
+    await prisma.deliverable.update({
+      where: { id },
+      data: { thumbnailUrl },
+    })
+
+    console.log(`[Admin] Screenshot recaptured for ${siteUrl} → ${thumbnailUrl}`)
+    res.json({ thumbnailUrl })
+  } catch (err) {
+    console.error('[Admin] Screenshot recapture error:', err)
+    res.status(500).json({ error: 'Error al recapturar screenshot' })
+  }
+})
+
 router.patch('/published/:id', adminAuth, async (req, res) => {
   try {
     const id = req.params.id as string
