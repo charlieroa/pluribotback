@@ -26,6 +26,7 @@ router.get('/', optionalAuth, async (req, res) => {
               botType: true,
               version: true,
               instanceId: true,
+              thumbnailUrl: true,
               createdAt: true,
             },
             orderBy: { createdAt: 'desc' },
@@ -39,7 +40,7 @@ router.get('/', optionalAuth, async (req, res) => {
   // Build response with deliverable summaries
   const result = projects.map(p => {
     // Collect all deliverables across conversations, dedupe by instanceId (latest version)
-    const allDeliverables: { id: string; title: string; type: string; botType: string; createdAt: Date }[] = []
+    const allDeliverables: { id: string; title: string; type: string; botType: string; createdAt: Date; thumbnailUrl?: string | null }[] = []
     const seenInstances = new Set<string>()
 
     for (const conv of p.conversations) {
@@ -47,7 +48,7 @@ router.get('/', optionalAuth, async (req, res) => {
         const key = d.instanceId || d.id
         if (!seenInstances.has(key)) {
           seenInstances.add(key)
-          allDeliverables.push({ id: d.id, title: d.title, type: d.type, botType: d.botType, createdAt: d.createdAt })
+          allDeliverables.push({ id: d.id, title: d.title, type: d.type, botType: d.botType, createdAt: d.createdAt, thumbnailUrl: (d as any).thumbnailUrl ?? null })
         }
       }
     }
@@ -102,6 +103,14 @@ router.get('/:id', optionalAuth, async (req, res) => {
           },
         },
         orderBy: { updatedAt: 'desc' },
+      },
+      assets: {
+        include: {
+          deliverable: {
+            select: { id: true, title: true, type: true, botType: true, thumbnailUrl: true, netlifyUrl: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
       },
     },
   })
@@ -198,6 +207,65 @@ router.delete('/:id/conversations/:convId', optionalAuth, async (req, res) => {
     data: { projectId: null },
   })
 
+  res.json({ ok: true })
+})
+
+// ─── Project Assets ───
+
+// Get all assets for a project
+router.get('/:id/assets', optionalAuth, async (req, res) => {
+  const userId = req.auth?.userId
+  if (!userId) return res.status(401).json({ error: 'No autenticado' })
+
+  const project = await prisma.project.findFirst({ where: { id: req.params.id as string, userId } })
+  if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' })
+
+  const assets = await prisma.projectAsset.findMany({
+    where: { projectId: req.params.id as string },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      deliverable: {
+        select: { id: true, title: true, type: true, botType: true, thumbnailUrl: true, netlifyUrl: true }
+      }
+    }
+  })
+
+  res.json(assets)
+})
+
+// Register an asset
+router.post('/:id/assets', optionalAuth, async (req, res) => {
+  const userId = req.auth?.userId
+  if (!userId) return res.status(401).json({ error: 'No autenticado' })
+
+  const project = await prisma.project.findFirst({ where: { id: req.params.id as string, userId } })
+  if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' })
+
+  const { conversationId, deliverableId, category, name, metadata } = req.body
+  if (!deliverableId || !category || !name) {
+    return res.status(400).json({ error: 'deliverableId, category y name son requeridos' })
+  }
+
+  const asset = await prisma.projectAsset.create({
+    data: {
+      projectId: req.params.id as string,
+      conversationId: conversationId || '',
+      deliverableId,
+      category,
+      name,
+      metadata: metadata ? JSON.stringify(metadata) : null,
+    }
+  })
+
+  res.json(asset)
+})
+
+// Delete an asset
+router.delete('/:id/assets/:assetId', optionalAuth, async (req, res) => {
+  const userId = req.auth?.userId
+  if (!userId) return res.status(401).json({ error: 'No autenticado' })
+
+  await prisma.projectAsset.delete({ where: { id: req.params.assetId as string } })
   res.json({ ok: true })
 })
 

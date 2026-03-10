@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Globe, Code, FileText, Video, Palette, BarChart3, Calendar, MessageSquare, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Globe, Code, FileText, Video, Palette, BarChart3, Calendar, MessageSquare, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Deliverable } from '../../types'
 
 interface ProjectConversation {
@@ -33,37 +33,32 @@ interface ProjectDetail {
   conversations: ProjectConversation[]
 }
 
+interface ActiveAgentInfo {
+  agentId: string
+  agentName: string
+  task?: string
+}
+
 interface ProjectViewProps {
   projectId: string
+  refreshKey?: number
+  activeAgents?: ActiveAgentInfo[]
   onBack: () => void
   onOpenDeliverable: (d: Deliverable) => void
   onLoadConversation: (id: string) => void
 }
 
+type EnrichedDeliverable = ProjectDeliverable & { conversationTitle: string; conversationId: string }
+
 const API_BASE = '/api'
 
-const typeIcon: Record<string, typeof Globe> = {
-  design: Globe,
-  code: Code,
-  report: FileText,
-  video: Video,
-  copy: Palette,
-}
-
-const typeLabel: Record<string, string> = {
-  design: 'Diseno',
-  code: 'App',
-  report: 'Reporte',
-  video: 'Video',
-  copy: 'Copy',
-}
-
-const typeColor: Record<string, string> = {
-  design: '#a855f7',
-  code: '#f59e0b',
-  report: '#3b82f6',
-  video: '#ef4444',
-  copy: '#10b981',
+const CATEGORIES: Record<string, { label: string; icon: typeof Globe; color: string }> = {
+  branding: { label: 'Branding', icon: Palette, color: '#ec4899' },
+  webs: { label: 'Webs & Landing', icon: Globe, color: '#a855f7' },
+  apps: { label: 'Aplicaciones', icon: Code, color: '#f59e0b' },
+  video: { label: 'Videos', icon: Video, color: '#ef4444' },
+  copy: { label: 'Copy & Contenido', icon: FileText, color: '#10b981' },
+  seo: { label: 'SEO & Analytics', icon: BarChart3, color: '#3b82f6' },
 }
 
 const botColor: Record<string, string> = {
@@ -76,29 +71,51 @@ const botColor: Record<string, string> = {
   brand: '#ec4899',
 }
 
-const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation }: ProjectViewProps) => {
+function classifyDeliverable(d: ProjectDeliverable): string {
+  const titleLower = (d.title || '').toLowerCase()
+  const isBranding = ['logo', 'marca', 'brand', 'paleta', 'identidad', 'logotipo', 'isotipo'].some(k => titleLower.includes(k))
+
+  if (isBranding && (d.botType === 'web' || d.botType === 'brand')) return 'branding'
+  if (d.type === 'video') return 'video'
+  if (d.type === 'code') return 'apps'
+  if (d.type === 'report') return 'seo'
+  if (d.type === 'copy') return 'copy'
+  if (d.type === 'design') return 'webs'
+  return 'other'
+}
+
+const ProjectView = ({ projectId, refreshKey, activeAgents, onBack, onOpenDeliverable, onLoadConversation }: ProjectViewProps) => {
   const [project, setProject] = useState<ProjectDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [convsOpen, setConvsOpen] = useState(false)
+
+  const fetchProject = async (showLoader = true) => {
+    if (showLoader) setLoading(true)
+    try {
+      const token = localStorage.getItem('plury_token')
+      const res = await fetch(`${API_BASE}/projects/${projectId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        setProject(await res.json())
+      }
+    } catch (err) {
+      console.error('Error fetching project:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchProject = async () => {
-      setLoading(true)
-      try {
-        const token = localStorage.getItem('plury_token')
-        const res = await fetch(`${API_BASE}/projects/${projectId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-        if (res.ok) {
-          setProject(await res.json())
-        }
-      } catch (err) {
-        console.error('Error fetching project:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchProject()
-  }, [projectId])
+  }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch when refreshKey changes (new deliverable arrived)
+  useEffect(() => {
+    if (refreshKey !== undefined && refreshKey > 0) {
+      fetchProject(false)
+    }
+  }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -118,7 +135,7 @@ const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation 
   }
 
   // Flatten all deliverables, keeping latest version per instanceId
-  const allDeliverables: (ProjectDeliverable & { conversationTitle: string; conversationId: string })[] = []
+  const allDeliverables: EnrichedDeliverable[] = []
   const seenInstances = new Set<string>()
 
   for (const conv of project.conversations) {
@@ -133,13 +150,19 @@ const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation 
   const totalConversations = project.conversations.length
   const totalDeliverables = allDeliverables.length
 
-  // Group by type
-  const byType: Record<string, typeof allDeliverables> = {}
+  // Group by smart category
+  const byCategory: Record<string, EnrichedDeliverable[]> = {}
   for (const d of allDeliverables) {
-    const t = d.type || 'report'
-    if (!byType[t]) byType[t] = []
-    byType[t].push(d)
+    const cat = classifyDeliverable(d)
+    if (!byCategory[cat]) byCategory[cat] = []
+    byCategory[cat].push(d)
   }
+
+  // Order categories as defined in CATEGORIES, skip empties
+  const categoryOrder = Object.keys(CATEGORIES)
+  const visibleCategories = categoryOrder.filter(cat => byCategory[cat]?.length)
+  // Add 'other' at the end if present
+  if (byCategory['other']?.length) visibleCategories.push('other')
 
   const handleOpenDeliverable = (d: ProjectDeliverable) => {
     onOpenDeliverable({
@@ -189,41 +212,68 @@ const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation 
       </div>
 
       <div className="p-6 space-y-8">
-        {/* Deliverables grid */}
-        {totalDeliverables === 0 ? (
+        {/* Active agents working indicator */}
+        {activeAgents && activeAgents.length > 0 && (
+          <div className="space-y-2">
+            {activeAgents.map(a => (
+              <div key={a.agentId} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm font-semibold text-ink">{a.agentName}</span>
+                <span className="text-xs text-ink-faint flex-1 truncate">{a.task || 'Trabajando...'}</span>
+                <div className="w-4 h-4 rounded-full animate-spin border-2 border-primary border-t-transparent" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Asset Categories */}
+        {totalDeliverables === 0 && (!activeAgents || activeAgents.length === 0) ? (
           <div className="text-center py-16">
             <Globe size={40} className="mx-auto text-ink-faint/20 mb-3" />
             <p className="text-sm text-ink-faint">Este proyecto aun no tiene entregables</p>
             <p className="text-xs text-ink-faint/60 mt-1">Crea algo desde el chat y agregalo a este proyecto</p>
           </div>
-        ) : (
-          Object.entries(byType).map(([type, items]) => {
-            const Icon = typeIcon[type] || FileText
-            const color = typeColor[type] || '#6b7280'
-            const label = typeLabel[type] || type
+        ) : totalDeliverables > 0 ? (
+          visibleCategories.map(cat => {
+            const items = byCategory[cat]
+            const config = CATEGORIES[cat] || { label: 'Otros', icon: FileText, color: '#6b7280' }
+            const Icon = config.icon
+            const color = config.color
 
             return (
-              <div key={type}>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
-                    <Icon size={14} style={{ color }} />
+              <div key={cat}>
+                {/* Section header */}
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: `${color}15` }}
+                  >
+                    <Icon size={15} style={{ color }} />
                   </div>
-                  <h2 className="text-sm font-bold text-ink">{label}</h2>
-                  <span className="text-[10px] font-semibold text-ink-faint bg-subtle px-1.5 py-0.5 rounded-full">{items.length}</span>
+                  <h2 className="text-sm font-bold text-ink">{config.label}</h2>
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: `${color}15`, color }}
+                  >
+                    {items.length}
+                  </span>
                 </div>
 
+                {/* Asset cards grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {items.map(d => {
                     const bColor = botColor[d.botType] || '#6b7280'
                     const isVisual = ['design', 'code'].includes(d.type)
+                    const isVideo = d.type === 'video'
+                    const isText = ['copy', 'report'].includes(d.type)
 
                     return (
                       <button
                         key={d.id}
                         onClick={() => handleOpenDeliverable(d)}
-                        className="group text-left rounded-xl border border-edge bg-surface-alt hover:border-primary/30 hover:shadow-md transition-all overflow-hidden"
+                        className="group text-left rounded-xl border border-edge bg-surface-alt hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 overflow-hidden"
                       >
-                        {/* Preview thumbnail for visual deliverables */}
+                        {/* Thumbnail area */}
                         {isVisual && d.content && (
                           <div className="relative h-36 bg-subtle overflow-hidden">
                             <iframe
@@ -238,6 +288,27 @@ const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation 
                           </div>
                         )}
 
+                        {isVideo && (
+                          <div className="relative h-36 bg-subtle flex items-center justify-center overflow-hidden">
+                            <div
+                              className="w-14 h-14 rounded-full flex items-center justify-center"
+                              style={{ backgroundColor: `${color}20` }}
+                            >
+                              <Video size={24} style={{ color }} />
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-surface-alt/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        )}
+
+                        {isText && d.content && (
+                          <div className="h-28 bg-subtle overflow-hidden px-3 py-2.5">
+                            <p className="text-[11px] leading-relaxed text-ink-faint/70 line-clamp-6">
+                              {d.content.replace(/<[^>]*>/g, '').slice(0, 300)}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Card body */}
                         <div className="p-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
@@ -249,6 +320,7 @@ const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation 
                             <div
                               className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
                               style={{ backgroundColor: bColor }}
+                              title={`Agente: ${d.botType}`}
                             >
                               {d.botType?.charAt(0)?.toUpperCase()}
                             </div>
@@ -270,7 +342,7 @@ const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation 
                               </a>
                             )}
                             {d.version && d.version > 1 && (
-                              <span className="text-[10px] text-ink-faint bg-subtle px-1 py-0.5 rounded">v{d.version}</span>
+                              <span className="text-[10px] font-semibold text-ink-faint bg-subtle px-1.5 py-0.5 rounded">v{d.version}</span>
                             )}
                           </div>
                         </div>
@@ -281,47 +353,58 @@ const ProjectView = ({ projectId, onBack, onOpenDeliverable, onLoadConversation 
               </div>
             )
           })
-        )}
+        ) : null}
 
-        {/* Conversations list */}
+        {/* Conversations section — collapsible */}
         {project.conversations.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-primary/10">
-                <MessageSquare size={14} className="text-primary" />
+            <button
+              onClick={() => setConvsOpen(prev => !prev)}
+              className="flex items-center gap-2 mb-3 w-full text-left group"
+            >
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10">
+                <MessageSquare size={15} className="text-primary" />
               </div>
               <h2 className="text-sm font-bold text-ink">Conversaciones</h2>
-            </div>
+              <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                {project.conversations.length}
+              </span>
+              <div className="ml-auto text-ink-faint group-hover:text-ink transition-colors">
+                {convsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </div>
+            </button>
 
-            <div className="space-y-1.5">
-              {project.conversations.map(conv => (
-                <button
-                  key={conv.id}
-                  onClick={() => onLoadConversation(conv.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-edge hover:border-primary/30 hover:bg-subtle transition-all text-left"
-                >
-                  <MessageSquare size={14} className="text-ink-faint flex-shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-ink truncate">{conv.title}</p>
-                    {conv.messages[0] && (
-                      <p className="text-[11px] text-ink-faint truncate mt-0.5">
-                        {conv.messages[0].sender}: {conv.messages[0].text}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {conv.deliverables.length > 0 && (
-                      <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                        {conv.deliverables.length} entregables
+            {convsOpen && (
+              <div className="space-y-1.5">
+                {project.conversations.map(conv => (
+                  <button
+                    key={conv.id}
+                    onClick={() => onLoadConversation(conv.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-edge hover:border-primary/30 hover:bg-subtle transition-all text-left"
+                  >
+                    <MessageSquare size={14} className="text-ink-faint flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-ink truncate">{conv.title}</p>
+                      {conv.messages[0] && (
+                        <p className="text-[11px] text-ink-faint truncate mt-0.5">
+                          {conv.messages[0].sender}: {conv.messages[0].text}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {conv.deliverables.length > 0 && (
+                        <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                          {conv.deliverables.length} entregables
+                        </span>
+                      )}
+                      <span className="text-[10px] text-ink-faint">
+                        {new Date(conv.updatedAt).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
                       </span>
-                    )}
-                    <span className="text-[10px] text-ink-faint">
-                      {new Date(conv.updatedAt).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

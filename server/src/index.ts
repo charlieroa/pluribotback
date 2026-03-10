@@ -31,6 +31,8 @@ import workflowRouter from './routes/workflow.js'
 import projectsRouter from './routes/projects.js'
 import apiKeysRouter from './routes/api-keys.js'
 import v1Router from './routes/v1.js'
+import sdkRouter from './routes/sdk.js'
+import embedRouter from './routes/embed.js'
 import { errorHandler } from './middleware/errors.js'
 import { getDeployDir } from './services/deploy.js'
 import { subdomainMiddleware } from './middleware/subdomain.js'
@@ -52,12 +54,16 @@ app.use(cors({
     // Allow requests with no origin (server-to-server, curl, mobile apps)
     if (!origin) return callback(null, true)
     if (allowedOrigins.includes(origin)) return callback(null, true)
-    // Allow any *.plury.co subdomain
+    // Allow any *.plury.co subdomain and WebContainer origins (for project previews)
     try {
       const url = new URL(origin)
       if (url.hostname.endsWith('.plury.co')) return callback(null, true)
+      if (url.hostname.includes('webcontainer')) return callback(null, true)
+      if (url.hostname.endsWith('.local-credentialless.webcontainer-api.io')) return callback(null, true)
     } catch { /* ignore parse errors */ }
-    callback(new Error(`Origin ${origin} not allowed by CORS`))
+    // Allow any origin for API v1 and SDK routes (agencies embed from their own domains)
+    // The API key auth middleware handles authorization
+    callback(null, true)
   },
   credentials: true,
 }))
@@ -90,6 +96,8 @@ app.use('/api/project', projectDataRouter)
 app.use('/api/workflow', workflowRouter)
 app.use('/api/api-keys', apiKeysRouter)
 app.use('/api/v1', v1Router)
+app.use('/sdk', sdkRouter)
+app.use('/embed', embedRouter)
 
 // Serve deployed projects as static files
 app.use('/deploys', express.static(getDeployDir()))

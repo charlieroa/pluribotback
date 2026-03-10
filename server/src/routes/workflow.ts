@@ -11,6 +11,8 @@ const __dirname = path.dirname(__filename)
 
 const router = Router()
 
+const LTX_API_BASE = 'https://api.ltx.video/v1'
+
 const videosDir = path.resolve(__dirname, '../../uploads/videos')
 if (!fs.existsSync(videosDir)) {
   fs.mkdirSync(videosDir, { recursive: true })
@@ -336,23 +338,33 @@ router.post('/generate-image', authMiddleware, async (req, res) => {
 
 router.post('/text-to-video', authMiddleware, async (req, res) => {
   try {
-    initFal()
+    const ltxKey = process.env.LTX_API_KEY
+    if (!ltxKey) return res.status(500).json({ error: 'LTX_API_KEY not configured' })
+
     const { prompt, aspectRatio = '16:9', duration = '5' } = req.body
 
-    const result = await fal.subscribe('fal-ai/kling-video/v3/pro/text-to-video', {
-      input: {
-        prompt,
-        duration: String(duration),
-        aspect_ratio: aspectRatio,
-        generate_audio: true,
+    const ltxRes = await fetch(`${LTX_API_BASE}/text-to-video`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ltxKey}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        prompt,
+        model: 'ltx-2-3-fast',
+        duration: parseInt(duration, 10),
+        resolution: '1080p',
+        fps: 24,
+        generate_audio: true,
+      }),
     })
 
-    const videoUrl = (result.data as any)?.video?.url
-    if (!videoUrl) return res.status(500).json({ error: 'No video generated' })
+    if (!ltxRes.ok) {
+      const errText = await ltxRes.text()
+      return res.status(500).json({ error: `LTX API error ${ltxRes.status}: ${errText}` })
+    }
 
-    const videoRes = await fetch(videoUrl)
-    const buffer = Buffer.from(await videoRes.arrayBuffer())
+    const buffer = Buffer.from(await ltxRes.arrayBuffer())
     const filename = `wf-vid-${Date.now()}-${Math.round(Math.random() * 1e6)}.mp4`
     const storage = getStorageProvider()
     const url = await storage.upload(buffer, filename, 'video/mp4')
@@ -367,7 +379,9 @@ router.post('/text-to-video', authMiddleware, async (req, res) => {
 
 router.post('/image-to-video', authMiddleware, async (req, res) => {
   try {
-    initFal()
+    const ltxKey = process.env.LTX_API_KEY
+    if (!ltxKey) return res.status(500).json({ error: 'LTX_API_KEY not configured' })
+
     const { imageUrl, prompt = '', aspectRatio = '16:9', duration = '5' } = req.body
 
     if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' })
@@ -375,21 +389,29 @@ router.post('/image-to-video', authMiddleware, async (req, res) => {
     const publicImageUrl = toPublicUrl(imageUrl)
     console.log(`[Workflow/ImageToVideo] Using image: ${publicImageUrl}`)
 
-    const result = await fal.subscribe('fal-ai/kling-video/v3/pro/image-to-video', {
-      input: {
-        prompt,
-        image_url: publicImageUrl,
-        duration: String(duration),
-        aspect_ratio: aspectRatio,
-        generate_audio: true,
+    const ltxRes = await fetch(`${LTX_API_BASE}/image-to-video`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ltxKey}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        prompt,
+        image_uri: publicImageUrl,
+        model: 'ltx-2-3-fast',
+        duration: parseInt(duration, 10),
+        resolution: '1080p',
+        fps: 24,
+        generate_audio: true,
+      }),
     })
 
-    const videoUrl = (result.data as any)?.video?.url
-    if (!videoUrl) return res.status(500).json({ error: 'No video generated' })
+    if (!ltxRes.ok) {
+      const errText = await ltxRes.text()
+      return res.status(500).json({ error: `LTX API error ${ltxRes.status}: ${errText}` })
+    }
 
-    const videoRes = await fetch(videoUrl)
-    const buffer = Buffer.from(await videoRes.arrayBuffer())
+    const buffer = Buffer.from(await ltxRes.arrayBuffer())
     const filename = `wf-vid-${Date.now()}-${Math.round(Math.random() * 1e6)}.mp4`
     const storage = getStorageProvider()
     const url = await storage.upload(buffer, filename, 'video/mp4')

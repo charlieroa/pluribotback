@@ -54,6 +54,29 @@ export interface Deliverable {
   publishSlug?: string
   customDomain?: string
   customDomainStatus?: string
+  thumbnailUrl?: string | null
+  netlifyUrl?: string | null
+}
+
+export type AssetCategory = 'branding' | 'webs' | 'apps' | 'video' | 'copy' | 'seo' | 'ads' | 'other'
+
+export interface ProjectAsset {
+  id: string
+  projectId: string
+  conversationId: string
+  deliverableId: string
+  category: AssetCategory
+  name: string
+  metadata?: string | null
+  createdAt: string
+  deliverable?: {
+    id: string
+    title: string
+    type: string
+    botType: string
+    thumbnailUrl?: string | null
+    netlifyUrl?: string | null
+  }
 }
 
 export interface KanbanTask {

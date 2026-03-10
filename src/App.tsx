@@ -21,11 +21,15 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import ProjectView from './components/projects/ProjectView'
 import LandingPage from './components/landing/LandingPage'
 import LandingPageV2 from './components/landing/LandingPageV2'
+import DocsPage from './components/docs/DocsPage'
+import SectionNavigator from './components/workspace/SectionNavigator'
+import type { DetectedSection } from './components/workspace/SectionNavigator'
 import type { SelectedElement } from './components/workspace/VisualEditToolbar'
 
 const App = () => {
   const pathname = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '/'
   const showLandingV2 = pathname === '/landingv2'
+  const showDocs = pathname === '/docs'
   const { user, isLoading, updateCreditBalance } = useAuth()
   const isAuthenticated = !!user
   const pendingPromptSent = useRef(false)
@@ -35,6 +39,8 @@ const App = () => {
   const [adminSubTab, setAdminSubTab] = useState<AdminTab>('users')
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeDeliverable, setActiveDeliverable] = useState<Deliverable | null>(null)
+  const [projectMode, setProjectMode] = useState<{ projectId: string; projectName: string } | null>(null)
+  const [projectRefreshKey, setProjectRefreshKey] = useState(0)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // Start collapsed, will expand if user has history
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidePanelTab, setSidePanelTab] = useState<'chat' | 'edit' | 'settings'>('chat')
@@ -51,6 +57,9 @@ const App = () => {
   const [selectedLogo, setSelectedLogo] = useState<{ index: number; src: string; style: string } | null>(null)
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
 
+  // Section navigator state
+  const [detectedSections, setDetectedSections] = useState<DetectedSection[]>([])
+
   useEffect(() => {
     (window as any).__selectedLogoForRefine = selectedLogo
   }, [selectedLogo])
@@ -63,6 +72,15 @@ const App = () => {
     setActiveDeliverable(d)
     setSidebarCollapsed(true)
     setChatPanelVisible(window.innerWidth >= 768)
+    // If in project mode, refresh the hub when returning
+    if (projectMode) setProjectRefreshKey(k => k + 1)
+  }
+
+  const handleProjectCreated = (project: { id: string; name: string }) => {
+    setProjectMode({ projectId: project.id, projectName: project.name })
+    setActiveProjectId(null) // don't use the standalone view
+    setSidebarCollapsed(true)
+    setChatPanelVisible(window.innerWidth >= 768)
   }
 
   const [workflowJustOpened, setWorkflowJustOpened] = useState(false)
@@ -70,12 +88,12 @@ const App = () => {
     setWorkflowPrompt(prompt)
     setWorkflowOpen(true)
     setSidebarCollapsed(true)
-    setChatPanelVisible(window.innerWidth >= 768)
+    setChatPanelVisible(false)
     setSidePanelTab('chat')
     setWorkflowJustOpened(true)
   }
 
-  const chat = useChat({ onDeliverable: handleDeliverable, onOpenWorkflow: handleOpenWorkflow, isAuthenticated, onCreditUpdate: updateCreditBalance })
+  const chat = useChat({ onDeliverable: handleDeliverable, onOpenWorkflow: handleOpenWorkflow, isAuthenticated, onCreditUpdate: updateCreditBalance, onProjectCreated: handleProjectCreated })
   useSpecialists()
 
   // Auto-expand sidebar when user has conversation history (only on first load)
@@ -152,6 +170,7 @@ const App = () => {
     setSidePanelTab('chat')
     setShowAdmin(false)
     setActiveProjectId(null)
+    setProjectMode(null)
   }
 
   const templatePrompts: Record<string, string> = {
@@ -252,6 +271,9 @@ const App = () => {
     projects: chat.projects,
   }
 
+  // Docs page (public, no auth required)
+  if (showDocs) return <DocsPage />
+
   // Landing page for unauthenticated visitors
   if (!isAuthenticated && !isLoading) {
     if (showLandingV2) {
@@ -340,6 +362,42 @@ const App = () => {
                 onOpenDeliverable={(d) => { setActiveDeliverable(d); setSidePanelTab('chat') }}
                 onLoadConversation={(id) => { setActiveProjectId(null); chat.loadConversation(id) }}
               />
+            ) : projectMode && !displayDeliverable && !workflowOpen ? (
+              /* ─── Project Mode: Chat sidebar + Project Hub ─── */
+              <>
+                {chatPanelVisible && (
+                  <div className="absolute inset-0 z-30 md:relative md:inset-auto md:z-auto w-full md:w-[320px] md:min-w-[320px] flex-shrink-0 flex flex-col border-r border-edge bg-surface overflow-hidden">
+                    <div className="flex items-center gap-2 px-3 py-2.5 border-b border-edge">
+                      <MessageCircle size={13} className="text-primary" />
+                      <span className="text-[11px] font-semibold text-ink flex-1">Chat</span>
+                      <button
+                        onClick={() => setChatPanelVisible(false)}
+                        className="px-1 py-0.5 text-ink-faint hover:text-ink transition-colors"
+                      >
+                        <PanelLeftClose size={14} />
+                      </button>
+                    </div>
+                    <ChatView {...chatViewProps} />
+                  </div>
+                )}
+                {!chatPanelVisible && (
+                  <button
+                    onClick={() => setChatPanelVisible(true)}
+                    className="absolute top-3 left-3 z-20 p-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 transition-opacity"
+                    title="Mostrar chat"
+                  >
+                    <PanelLeftOpen size={16} />
+                  </button>
+                )}
+                <ProjectView
+                  projectId={projectMode.projectId}
+                  refreshKey={projectRefreshKey}
+                  activeAgents={chat.coordinationAgents}
+                  onBack={() => setProjectMode(null)}
+                  onOpenDeliverable={(d) => { setActiveDeliverable(d); setSidePanelTab('chat') }}
+                  onLoadConversation={(id) => { setProjectMode(null); chat.loadConversation(id) }}
+                />
+              </>
             ) : (displayDeliverable || workflowOpen) ? (
               <>
                 {/* Chat side panel */}
@@ -420,12 +478,19 @@ const App = () => {
                         onReplaceImage={(url, alt) => {
                           window.dispatchEvent(new CustomEvent('replace-image-in-iframe', { detail: { url, alt } }))
                         }}
+                        detectedSections={detectedSections}
+                        onHighlightSection={(sectionId) => {
+                          window.dispatchEvent(new CustomEvent('highlight-section', { detail: sectionId }))
+                        }}
+                        onUpdateSectionProp={(sectionId, prop, value) => {
+                          window.dispatchEvent(new CustomEvent('update-section-prop', { detail: { sectionId, prop, value } }))
+                        }}
                       />
                     )}
                   </div>
                 )}
 
-                {!chatPanelVisible && (
+                {!chatPanelVisible && !workflowOpen && (
                   <button
                     onClick={() => setChatPanelVisible(true)}
                     className="absolute top-3 left-3 z-20 p-2 bg-primary text-primary-foreground rounded-lg shadow-lg hover:opacity-90 transition-opacity"
@@ -440,11 +505,12 @@ const App = () => {
                     <WorkflowEditor
                       initialPrompt={workflowPrompt}
                       onClose={() => { setWorkflowOpen(false); setWorkflowPrompt(''); setChatPanelVisible(true) }}
+                      onShowChat={() => setChatPanelVisible(true)}
                     />
                   ) : displayDeliverable ? (
                     <WorkspacePanel
                       deliverable={displayDeliverable}
-                      onClose={() => { setActiveDeliverable(null); setSelectedImageUrl(null); setChatPanelVisible(true); setSelectedLogo(null) }}
+                      onClose={() => { setActiveDeliverable(null); setSelectedImageUrl(null); setChatPanelVisible(true); setSelectedLogo(null); if (projectMode) setProjectRefreshKey(k => k + 1) }}
                       editMode={editMode}
                       onEditModeChange={setEditMode}
                       onElementSelected={setSelectedElement}
@@ -452,6 +518,7 @@ const App = () => {
                       conversationId={chat.conversationId ?? undefined}
                       onSelectVersion={(d) => { setActiveDeliverable(d as Deliverable); setSelectedLogo(null) }}
                       onLogoSelected={setSelectedLogo}
+                      onSectionsDetected={setDetectedSections}
                       selectedImageUrl={selectedImageUrl}
                       isGenerating={!!(chat.isRefining || (chat.streamingAgent && ['web', 'dev'].includes(chat.streamingAgent) && chat.streamingText))}
                       generatingAgent={chat.refiningAgentName || (chat.streamingAgent && ['web', 'dev'].includes(chat.streamingAgent) ? chat.streamingAgent === 'dev' ? 'Code' : 'Pixel' : null)}

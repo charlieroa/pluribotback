@@ -40,6 +40,9 @@ export function useSSE(onEvent: (data: Record<string, unknown>) => void): UseSSE
             resolve()
             return
           }
+          if (data.type === 'open_workflow') {
+            console.log('[SSE] Received open_workflow event:', data)
+          }
           onEventRef.current(data)
         } catch (err) {
           console.error('[SSE] Parse error:', err)

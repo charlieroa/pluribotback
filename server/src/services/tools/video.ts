@@ -1,4 +1,3 @@
-import { fal } from '@fal-ai/client'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -12,17 +11,20 @@ if (!fs.existsSync(videosDir)) {
   fs.mkdirSync(videosDir, { recursive: true })
 }
 
-// ─── Aspect ratio mapping for Kling ───
-const ASPECT_RATIO_MAP: Record<string, string> = {
-  '16:9': '16:9',
-  '9:16': '9:16',
-  '1:1': '1:1',
+// ─── LTX-2 API config ───
+const LTX_API_BASE = 'https://api.ltx.video/v1'
+
+// Map aspect ratios to LTX resolution strings
+const RESOLUTION_MAP: Record<string, string> = {
+  '16:9': '1080p',
+  '9:16': '1080p',
+  '1:1': '1080p',
 }
 
 export const videoTools: ToolDefinition[] = [
   {
     name: 'generate_video',
-    description: 'Generates a short video clip with audio using AI (Kling V3 Pro). Use this to create reels, promotional clips, animations, and short-form video content. The prompt MUST be in English for best results. Video generation takes 1-3 minutes.',
+    description: 'Generates a short video clip with audio using AI (LTX-2). Use this to create reels, promotional clips, animations, and short-form video content. The prompt MUST be in English for best results. Video generation takes 30-90 seconds.',
     parameters: {
       type: 'object',
       properties: {
@@ -48,37 +50,40 @@ export const videoTools: ToolDefinition[] = [
       const aspectRatio = (input.aspectRatio as string) || '16:9'
       const duration = parseInt((input.duration as string) || '5', 10)
 
-      if (!process.env.FAL_KEY) {
-        return JSON.stringify({ success: false, error: 'FAL_KEY not configured' })
+      const apiKey = process.env.LTX_API_KEY
+      if (!apiKey) {
+        return JSON.stringify({ success: false, error: 'LTX_API_KEY not configured' })
       }
 
       try {
-        fal.config({ credentials: process.env.FAL_KEY })
+        console.log(`[Video/LTX-2] Generating video... (${aspectRatio}, ${duration}s)`)
 
-        console.log(`[Video/Kling] Generating video... (${aspectRatio}, ${duration}s)`)
+        const resolution = RESOLUTION_MAP[aspectRatio] || '1080p'
 
-        const result = await fal.subscribe('fal-ai/kling-video/v3/pro/text-to-video', {
-          input: {
-            prompt,
-            duration: String(duration),
-            aspect_ratio: ASPECT_RATIO_MAP[aspectRatio] || '16:9',
-            generate_audio: true,
+        const response = await fetch(`${LTX_API_BASE}/text-to-video`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
           },
+          body: JSON.stringify({
+            prompt,
+            model: 'ltx-2-3-fast',
+            duration,
+            resolution,
+            fps: 24,
+            generate_audio: true,
+          }),
         })
 
-        const videoUrl = (result.data as any)?.video?.url
-        if (!videoUrl) {
-          console.log('[Video/Kling] No video URL in response')
-          return JSON.stringify({ success: false, error: 'No video generated' })
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`[Video/LTX-2] API error ${response.status}: ${errorText}`)
+          return JSON.stringify({ success: false, error: `LTX API error: ${response.status}` })
         }
 
-        // Download the video
-        console.log('[Video/Kling] Downloading video...')
-        const videoResponse = await fetch(videoUrl)
-        if (!videoResponse.ok) {
-          return JSON.stringify({ success: false, error: `Video download failed (${videoResponse.status})` })
-        }
-        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer())
+        // LTX returns the video directly as binary
+        const videoBuffer = Buffer.from(await response.arrayBuffer())
 
         const filename = `vid-${Date.now()}-${Math.round(Math.random() * 1e6)}.mp4`
         const filePath = path.join(videosDir, filename)
@@ -86,7 +91,7 @@ export const videoTools: ToolDefinition[] = [
 
         const url = `/uploads/videos/${filename}`
 
-        console.log('[Video/Kling] Success')
+        console.log(`[Video/LTX-2] Success → ${url}`)
         return JSON.stringify({
           success: true,
           url,
@@ -95,7 +100,7 @@ export const videoTools: ToolDefinition[] = [
         })
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        console.error('[Video/Kling] Error:', message)
+        console.error('[Video/LTX-2] Error:', message)
         return JSON.stringify({ success: false, error: message })
       }
     },

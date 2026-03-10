@@ -32,9 +32,12 @@ router.patch('/', orgAdminAuth, async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } })
     if (!user?.organizationId) {
       // Create org if doesn't exist
-      const { name, logoUrl, primaryColor } = req.body as { name?: string; logoUrl?: string; primaryColor?: string }
+      const { name, logoUrl, primaryColor, accentColor, faviconUrl, brandName, fontFamily, customCss } = req.body as {
+        name?: string; logoUrl?: string; primaryColor?: string; accentColor?: string
+        faviconUrl?: string; brandName?: string; fontFamily?: string; customCss?: string
+      }
       const org = await prisma.organization.create({
-        data: { name: name || 'Mi Organización', logoUrl, primaryColor },
+        data: { name: name || 'Mi Organización', logoUrl, primaryColor, accentColor, faviconUrl, brandName, fontFamily, customCss },
       })
       await prisma.user.update({
         where: { id: user!.id },
@@ -44,13 +47,21 @@ router.patch('/', orgAdminAuth, async (req, res) => {
       return
     }
 
-    const { name, logoUrl, primaryColor } = req.body as { name?: string; logoUrl?: string; primaryColor?: string }
+    const { name, logoUrl, primaryColor, accentColor, faviconUrl, brandName, fontFamily, customCss } = req.body as {
+      name?: string; logoUrl?: string; primaryColor?: string; accentColor?: string
+      faviconUrl?: string; brandName?: string; fontFamily?: string; customCss?: string
+    }
     const org = await prisma.organization.update({
       where: { id: user.organizationId },
       data: {
         ...(name !== undefined ? { name } : {}),
         ...(logoUrl !== undefined ? { logoUrl } : {}),
         ...(primaryColor !== undefined ? { primaryColor } : {}),
+        ...(accentColor !== undefined ? { accentColor } : {}),
+        ...(faviconUrl !== undefined ? { faviconUrl } : {}),
+        ...(brandName !== undefined ? { brandName } : {}),
+        ...(fontFamily !== undefined ? { fontFamily } : {}),
+        ...(customCss !== undefined ? { customCss } : {}),
       },
     })
     res.json({ organization: org })

@@ -33,12 +33,23 @@ const PublishedSection = () => {
     }
   }
 
+  const [error, setError] = useState<string | null>(null)
+
   const fetchSites = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/admin/published', { headers: getAuthHeaders() })
-      if (res.ok) setSites(await res.json())
-    } catch {}
+      if (res.ok) {
+        const data = await res.json()
+        setSites(data)
+      } else {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        setError(`Error ${res.status}: ${err.error || res.statusText}`)
+      }
+    } catch (e) {
+      setError(`Error de red: ${e instanceof Error ? e.message : 'desconocido'}`)
+    }
     setLoading(false)
   }, [])
 
@@ -124,6 +135,10 @@ const PublishedSection = () => {
           className="w-full pl-9 pr-4 py-2.5 text-sm bg-surface border border-edge rounded-lg text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>
+
+      {error && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">{error}</div>
+      )}
 
       {loading ? (
         <div className="text-center py-12 text-ink-faint text-sm">Cargando...</div>

@@ -26,7 +26,7 @@ const GOOGLE_FONTS = [
   'Manrope',
 ]
 
-const DevSettingsPanel = ({ deliverable, iframeRef, conversationId }: DevSettingsPanelProps) => {
+const DevSettingsPanel = ({ deliverable, iframeRef, conversationId: _conversationId }: DevSettingsPanelProps) => {
   // Color state
   const [primaryColor, setPrimaryColor] = useState('#1e293b')
   const [secondaryColor, setSecondaryColor] = useState('#f1f5f9')

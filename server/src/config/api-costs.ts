@@ -9,7 +9,7 @@ export const apiCostsPerMillionTokens: Record<string, { input: number; output: n
 // Real API costs in USD per tool call
 export const toolApiCosts: Record<string, number> = {
   generate_image:      0.05,  // ~average Imagen 4 cost
-  generate_video:      2.50,  // ~average Veo 3 cost
+  generate_video:      0.30,  // ~average LTX-2 cost (5s fast=$0.20, 10s=$0.40)
   search_stock_photo:  0,
   search_web:          0,
   run_code:            0,

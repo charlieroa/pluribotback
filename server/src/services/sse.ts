@@ -100,7 +100,7 @@ export function broadcast(conversationId: string, event: SSEEvent): void {
 
   const conns = connections.get(conversationId)
   if (!conns || conns.length === 0) {
-    if (event.type === 'deliverable' || event.type === 'agent_end') {
+    if (event.type === 'deliverable' || event.type === 'agent_end' || event.type === 'open_workflow') {
       console.warn(`[SSE] ${event.type} buffered (id=${eventId}) for ${conversationId} — 0 connections (will replay on reconnect)`)
     }
     return

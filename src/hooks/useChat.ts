@@ -36,6 +36,7 @@ interface UseChatOptions {
   onOpenWorkflow?: (prompt: string) => void
   isAuthenticated?: boolean
   onCreditUpdate?: (balance: number) => void
+  onProjectCreated?: (project: { id: string; name: string }) => void
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -46,7 +47,7 @@ function getAuthHeaders(): Record<string, string> {
   }
 }
 
-export function useChat({ onDeliverable, onOpenWorkflow, isAuthenticated = false, onCreditUpdate }: UseChatOptions = {}) {
+export function useChat({ onDeliverable, onOpenWorkflow, isAuthenticated = false, onCreditUpdate, onProjectCreated }: UseChatOptions = {}) {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(isAuthenticated ? initialTasks : [])
   const [conversations, setConversations] = useState<ConversationItem[]>([])
@@ -61,7 +62,12 @@ export function useChat({ onDeliverable, onOpenWorkflow, isAuthenticated = false
 
   const planFlow = usePlanFlow({
     setMessages, setStreamingText, setStreamingAgent, setIsCoordinating,
-    latestDeliverableRef, onDeliverable, onCreditUpdate, conversationId,
+    latestDeliverableRef, onDeliverable, onCreditUpdate,
+    onProjectCreated: (project?: { id: string; name: string }) => {
+      fetchProjects()
+      if (project) onProjectCreated?.(project)
+    },
+    conversationId,
   })
 
   // SSE event handler: route kanban + human events here, delegate rest to planFlow
@@ -77,6 +83,7 @@ export function useChat({ onDeliverable, onOpenWorkflow, isAuthenticated = false
         }
         return
       case 'open_workflow':
+        console.log('[useChat] open_workflow event received, prompt:', data.prompt, 'hasCallback:', !!onOpenWorkflow)
         if (onOpenWorkflow && data.prompt) {
           onOpenWorkflow(data.prompt as string)
         }
@@ -103,7 +110,7 @@ export function useChat({ onDeliverable, onOpenWorkflow, isAuthenticated = false
       default:
         planFlow.handleSSEEvent(data)
     }
-  }, [setMessages, planFlow])
+  }, [setMessages, planFlow, onOpenWorkflow])
 
   const sse = useSSE(handleSSEEvent)
   const { connectSSE, closeSSE } = sse

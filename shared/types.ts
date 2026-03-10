@@ -76,6 +76,7 @@ export type SSEEvent =
   | { type: 'open_workflow'; prompt: string; agentId: string; instanceId: string }
   | { type: 'quick_replies'; options: { label: string; value: string; icon?: string }[] }
   | { type: 'project_suggest'; conversationId: string; title: string }
+  | { type: 'project_created'; project: { id: string; name: string } }
   | { type: 'error'; message: string }
   | { type: 'usage'; inputTokens: number; outputTokens: number }
 

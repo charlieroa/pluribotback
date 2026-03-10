@@ -50,6 +50,7 @@ interface WorkspacePanelProps {
   conversationId?: string
   onSelectVersion?: (d: Deliverable) => void
   onLogoSelected?: (logo: SelectedLogo | null) => void
+  onSectionsDetected?: (sections: any[]) => void
   selectedImageUrl?: string | null
   isGenerating?: boolean
   generatingAgent?: string | null
@@ -158,7 +159,7 @@ class ProjectWorkspaceErrorBoundary extends Component<{ children: ReactNode; onF
   }
 }
 
-const WorkspacePanel = ({ deliverable, onClose, editMode = false, onEditModeChange, onElementSelected, onSwitchToEditTab, conversationId, onSelectVersion, onLogoSelected, selectedImageUrl, isGenerating = false, generatingAgent }: WorkspacePanelProps) => {
+const WorkspacePanel = ({ deliverable, onClose, editMode = false, onEditModeChange, onElementSelected, onSwitchToEditTab, conversationId, onSelectVersion, onLogoSelected, onSectionsDetected, selectedImageUrl, isGenerating = false, generatingAgent }: WorkspacePanelProps) => {
   const config = typeConfig[deliverable.type]
   const canPreview = isHtmlContent(deliverable.content)
   const isDevAgent = deliverable.botType === 'dev'
@@ -231,6 +232,9 @@ const WorkspacePanel = ({ deliverable, onClose, editMode = false, onEditModeChan
       if (event.data?.type === 'content-updated') {
         setModifiedContent(event.data.html)
       }
+      if (event.data?.type === 'sections-detected') {
+        onSectionsDetected?.(event.data.sections)
+      }
       if (event.data?.type === 'logo-selected') {
         onLogoSelected?.({
           index: event.data.logoIndex,
@@ -241,7 +245,7 @@ const WorkspacePanel = ({ deliverable, onClose, editMode = false, onEditModeChan
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
-  }, [onElementSelected, onSwitchToEditTab, onLogoSelected])
+  }, [onElementSelected, onSwitchToEditTab, onLogoSelected, onSectionsDetected])
 
   // Listen for custom events from EditPanel
   useEffect(() => {
@@ -264,16 +268,32 @@ const WorkspacePanel = ({ deliverable, onClose, editMode = false, onEditModeChan
         iframeRef.current.contentWindow.postMessage({ type: action }, '*')
       }
     }
+    const handleHighlightSection = (e: Event) => {
+      const sectionId = (e as CustomEvent).detail as string
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({ type: 'highlight-section', sectionId }, '*')
+      }
+    }
+    const handleUpdateSectionProp = (e: Event) => {
+      const { sectionId, prop, value } = (e as CustomEvent).detail
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({ type: 'update-section-prop', sectionId, prop, value }, '*')
+      }
+    }
 
     window.addEventListener('open-unsplash-modal', handleOpenUnsplash)
     window.addEventListener('apply-style-to-iframe', handleApplyStyle)
     window.addEventListener('replace-image-in-iframe', handleReplaceImage)
     window.addEventListener('editor-action', handleEditorAction)
+    window.addEventListener('highlight-section', handleHighlightSection)
+    window.addEventListener('update-section-prop', handleUpdateSectionProp)
     return () => {
       window.removeEventListener('open-unsplash-modal', handleOpenUnsplash)
       window.removeEventListener('apply-style-to-iframe', handleApplyStyle)
       window.removeEventListener('replace-image-in-iframe', handleReplaceImage)
       window.removeEventListener('editor-action', handleEditorAction)
+      window.removeEventListener('highlight-section', handleHighlightSection)
+      window.removeEventListener('update-section-prop', handleUpdateSectionProp)
     }
   }, [])
 

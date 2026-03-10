@@ -10,7 +10,7 @@ import fs from 'fs'
 const router = Router()
 
 const JWT_SECRET = process.env.JWT_SECRET || 'plury-project-secret'
-const MAX_ROWS_PER_PROJECT = 10_000
+const MAX_ROWS_PER_PROJECT = 50_000
 const TABLE_NAME_RE = /^[a-z_][a-z0-9_]{0,63}$/
 
 // File upload config for project files

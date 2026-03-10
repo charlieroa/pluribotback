@@ -125,6 +125,7 @@ interface PlanFlowDeps {
   latestDeliverableRef: React.MutableRefObject<Deliverable | null>
   onDeliverable?: (d: Deliverable) => void
   onCreditUpdate?: (balance: number) => void
+  onProjectCreated?: (project?: { id: string; name: string }) => void
   conversationId: string | null
 }
 
@@ -180,7 +181,7 @@ function getAgentDisplayName(agentId: string): string {
 }
 
 export function usePlanFlow(deps: PlanFlowDeps): UsePlanFlowReturn {
-  const { setMessages, setStreamingText, setStreamingAgent, setIsCoordinating, latestDeliverableRef, onDeliverable, onCreditUpdate, conversationId } = deps
+  const { setMessages, setStreamingText, setStreamingAgent, setIsCoordinating, latestDeliverableRef, onDeliverable, onCreditUpdate, onProjectCreated, conversationId } = deps
 
   const [pendingApproval, setPendingApproval] = useState<string | null>(null)
   const [proposedPlan, setProposedPlan] = useState<ProposedPlan | null>(null)
@@ -481,6 +482,14 @@ export function usePlanFlow(deps: PlanFlowDeps): UsePlanFlowReturn {
       case 'project_suggest':
         setProjectSuggest({ conversationId: data.conversationId as string, title: data.title as string })
         break
+
+      case 'project_created': {
+        // Auto-created project — switch to project mode
+        const proj = data.project as { id: string; name: string } | undefined
+        console.log('[SSE] Project auto-created:', proj)
+        onProjectCreated?.(proj)
+        break
+      }
 
       case 'error':
         console.error('[SSE] Error from server:', data.message)

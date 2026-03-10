@@ -13,6 +13,7 @@
  */
 import { Router } from 'express'
 import { v4 as uuid } from 'uuid'
+import crypto from 'crypto'
 import { prisma } from '../db/client.js'
 import { apiKeyAuth } from '../middleware/api-key.js'
 import { checkCredits, getCreditUsage } from '../services/credit-tracker.js'
@@ -104,8 +105,14 @@ router.post('/generate', async (req, res) => {
 
     // Store webhook URL if provided
     if (webhook_url) {
-      // Store as conversation metadata (using title suffix for simplicity)
-      // TODO: add dedicated webhook column
+      const webhookSecret = crypto.randomBytes(32).toString('hex')
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          webhookUrl: webhook_url,
+          webhookSecret,
+        },
+      })
     }
 
     // Kick off generation asynchronously
@@ -342,7 +349,7 @@ function getOpenApiDocs() {
                     prompt: { type: 'string', description: 'What to generate', example: 'Create a landing page for a pizza delivery business with online ordering' },
                     agent: { type: 'string', enum: ['dev', 'web', 'seo', 'content', 'ads'], default: 'dev', description: 'Which AI agent to use' },
                     model: { type: 'string', description: 'Model override (optional)' },
-                    webhook_url: { type: 'string', format: 'uri', description: 'URL to POST results when generation completes (coming soon)' },
+                    webhook_url: { type: 'string', format: 'uri', description: 'URL to POST results when generation completes. Signed with HMAC-SHA256.' },
                   },
                 },
               },

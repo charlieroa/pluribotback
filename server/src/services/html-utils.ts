@@ -302,6 +302,61 @@ export const VISUAL_EDITOR_SCRIPT = `<script>
     var html = document.documentElement.outerHTML;
     window.parent.postMessage({ type: 'content-updated', html: '<!DOCTYPE html>\\n' + html }, '*');
   }
+  // --- Section detection ---
+  function detectSections() {
+    var sectionEls = document.querySelectorAll('nav, header, section, main, footer, [class*="hero"], [class*="banner"], [class*="cta"]');
+    var sections = [];
+    var firstSectionAfterNav = false;
+    sectionEls.forEach(function(el, idx) {
+      if (el === overlay || el.tagName === 'SCRIPT') return;
+      var tag = el.tagName.toLowerCase();
+      var text = '';
+      var h = el.querySelector('h1, h2, h3');
+      if (h) text = h.textContent.trim().substring(0, 60);
+      var sectionType = 'section';
+      var cls = (el.className || '').toLowerCase();
+      if (tag === 'nav' || cls.includes('nav')) sectionType = 'nav';
+      else if (tag === 'footer' || cls.includes('footer')) sectionType = 'footer';
+      else if (cls.includes('hero') || cls.includes('banner') || (el.querySelector('h1') && !firstSectionAfterNav)) {
+        sectionType = 'hero';
+        firstSectionAfterNav = true;
+      }
+      else if (cls.includes('pricing') || cls.includes('precio') || (el.textContent && /\\$\\d|precio|price|plan/i.test(el.textContent.substring(0,200)))) sectionType = 'pricing';
+      else if (cls.includes('testimonial') || cls.includes('review') || cls.includes('quote')) sectionType = 'testimonials';
+      else if (cls.includes('feature') || cls.includes('servicio') || cls.includes('service')) sectionType = 'features';
+      else if (cls.includes('cta') || cls.includes('call-to-action')) sectionType = 'cta';
+      var rect = el.getBoundingClientRect();
+      if (rect.height < 20) return;
+      var sid = 'plury-section-' + idx;
+      el.dataset.plurySection = sid;
+      sections.push({ id: sid, tag: tag, label: text || sectionType, sectionType: sectionType, headingText: text, rect: { top: rect.top, height: rect.height } });
+    });
+    window.parent.postMessage({ type: 'sections-detected', sections: sections }, '*');
+  }
+
+  // Detect on load and after edits
+  setTimeout(detectSections, 500);
+
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'detect-sections') detectSections();
+    if (e.data && e.data.type === 'highlight-section') {
+      var el = document.querySelector('[data-plury-section="' + e.data.sectionId + '"]');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.outline = '3px solid #6366f1';
+        el.style.outlineOffset = '2px';
+        setTimeout(function() { el.style.outline = ''; el.style.outlineOffset = ''; }, 2000);
+      }
+    }
+    if (e.data && e.data.type === 'update-section-prop') {
+      var el = document.querySelector('[data-plury-section="' + e.data.sectionId + '"]');
+      if (el) {
+        saveState();
+        el.style[e.data.prop] = e.data.value;
+        notifyContentUpdate();
+      }
+    }
+  });
 })();
 </script>`
 

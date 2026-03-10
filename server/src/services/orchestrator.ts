@@ -216,6 +216,34 @@ export async function processMessage(conversationId: string, text: string, userI
     }
   }
 
+  // Inject existing project context so the orchestrator knows about follow-up extensions
+  const existingDevProject = await prisma.deliverable.findFirst({
+    where: { conversationId, type: 'code' },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, instanceId: true, title: true, content: true },
+  })
+
+  if (existingDevProject) {
+    let fileList = ''
+    try {
+      const files = JSON.parse(existingDevProject.content)
+      if (Array.isArray(files)) {
+        fileList = files.map((f: any) => f.path).join(', ')
+      }
+    } catch {}
+
+    const projectContext = `\n\n[SISTEMA: Esta conversacion tiene un proyecto dev existente (instanceId: ${existingDevProject.instanceId}). Archivos actuales: ${fileList}. Si el usuario pide cambios, modulos nuevos, o mejoras a este proyecto, usa modo EXTENSION con el mismo instanceId.]`
+
+    // Append to the last user message
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1]
+      if (lastMsg.role === 'user') {
+        lastMsg.content += projectContext
+      }
+    }
+    console.log(`[processMessage] Existing dev project found: ${existingDevProject.instanceId}, injecting context`)
+  }
+
   broadcast(conversationId, {
     type: 'agent_thinking',
     agentId: 'base',

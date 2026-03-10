@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Type, ImageIcon, Palette, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, MousePointer, Wand2, Paintbrush, RotateCcw, Sparkles, Copy, ArrowUp, ArrowDown, EyeOff, Undo2, Redo2 } from 'lucide-react'
+import { Type, ImageIcon, Palette, Trash2, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, MousePointer, Wand2, Paintbrush, RotateCcw, Sparkles, Copy, ArrowUp, ArrowDown, EyeOff, Undo2, Redo2, LayoutGrid } from 'lucide-react'
 import type { SelectedElement } from './VisualEditToolbar'
 import type { Deliverable } from '../../types'
+import SectionNavigator from './SectionNavigator'
+import type { DetectedSection } from './SectionNavigator'
 
 interface SelectedLogo {
   index: number
@@ -20,6 +22,9 @@ interface EditPanelProps {
   onApplyStyle: (styles: Record<string, string>) => void
   onReplaceImage: (url: string, alt: string) => void
   selectedLogo?: SelectedLogo | null
+  detectedSections?: DetectedSection[]
+  onHighlightSection?: (sectionId: string) => void
+  onUpdateSectionProp?: (sectionId: string, prop: string, value: string) => void
 }
 
 const PRESET_COLORS = [
@@ -63,8 +68,12 @@ const EditPanel = ({
   onChangeImage,
   onApplyStyle,
   selectedLogo,
+  detectedSections = [],
+  onHighlightSection,
+  onUpdateSectionProp,
 }: EditPanelProps) => {
   const [activeSection, setActiveSection] = useState<string | null>('general')
+  const [showSections, setShowSections] = useState(false)
   const isLogo = isLogoDeliverable(deliverable)
 
   // Auto-activate edit mode when this panel mounts (only for pages, not logos)
@@ -247,9 +256,34 @@ const EditPanel = ({
         </div>
       </div>
 
+      {/* Section/Element toggle */}
+      {detectedSections.length > 0 && (
+        <div className="px-4 py-1.5 border-b border-edge flex gap-1">
+          <button
+            onClick={() => setShowSections(false)}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors ${!showSections ? 'bg-blue-500/10 text-blue-600' : 'text-ink-faint hover:text-ink'}`}
+          >
+            <MousePointer size={11} /> Elemento
+          </button>
+          <button
+            onClick={() => setShowSections(true)}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors ${showSections ? 'bg-blue-500/10 text-blue-600' : 'text-ink-faint hover:text-ink'}`}
+          >
+            <LayoutGrid size={11} /> Secciones ({detectedSections.length})
+          </button>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {!selectedElement ? (
+        {showSections && detectedSections.length > 0 ? (
+          <SectionNavigator
+            sections={detectedSections}
+            onHighlightSection={onHighlightSection || (() => {})}
+            onUpdateSectionProp={onUpdateSectionProp || (() => {})}
+            onSendMessage={onSendMessage}
+          />
+        ) : !selectedElement ? (
           <div className="p-6 flex flex-col items-center justify-center text-center gap-3 h-full">
             <MousePointer size={32} className="text-blue-400" />
             <p className="text-sm text-ink-faint">

@@ -67,7 +67,7 @@ src/
   lib/
     utils.js                 — Utilidades compartidas
   data/
-    mockData.js              — Datos de ejemplo REALISTAS centralizados
+    seed.js                  — Datos iniciales para el backend (auto-seed)
 
 ═══════════════════════════════════════════
 REGLAS DE IMPORTS
@@ -76,7 +76,7 @@ REGLAS DE IMPORTS
 REGLA CRITICA — EXTENSIONES DE ARCHIVO:
 - TODOS los archivos que contengan JSX (tags como <Component />, <div>, etc.) DEBEN tener extension .jsx
 - Archivos de datos puros sin JSX pueden ser .js, pero si contienen iconos de lucide-react u otro JSX, DEBEN ser .jsx
-- Ejemplo: mockData.js que tiene "icon: <Building2 />" → DEBE ser mockData.jsx
+- Ejemplo: seed.js que tiene "icon: <Building2 />" → DEBE ser seed.jsx
 - Vite NO puede parsear JSX en archivos .js — esto causa errores fatales
 - En caso de duda, usa .jsx siempre
 
@@ -99,6 +99,13 @@ import ProductsPage from './products/ProductsPage'
 // NUNCA importes de @/ ni paths absolutos. SIEMPRE usa rutas relativas (./ o ../)
 // NUNCA importes componentes que no hayas creado como archivo
 
+REGLA CRITICA — INTEGRIDAD DE ARCHIVOS:
+Si tu codigo importa un archivo (ej: import Input from '../ui/Input'), ESE ARCHIVO DEBE EXISTIR en tu respuesta JSON.
+El error mas comun es importar componentes como Input, DataTable, KpiCard, DashboardShell, ActivityTimeline
+sin incluir el archivo correspondiente en la respuesta. Esto ROMPE la app con "Failed to resolve import".
+ANTES de responder, verifica que CADA import relativo (./ o ../) tiene su archivo correspondiente en el JSON.
+Si mencionas un componente en un import, DEBES generar ese archivo completo.
+
 ═══════════════════════════════════════════
 COMPONENTES REUTILIZABLES
 ═══════════════════════════════════════════
@@ -109,7 +116,14 @@ Para apps con multiples vistas CRUD similares, crea componentes reutilizables:
 // src/components/ui/FormModal.jsx — Modal de formulario reutilizable
 // src/components/ui/StatCard.jsx  — Card de estadistica para dashboards
 // src/components/ui/Button.jsx    — Boton con variantes
-// src/components/patterns/*       — Bloques premium por tipo de proyecto
+// src/components/ui/Input.jsx     — Input con label y variantes
+// src/components/ui/Badge.jsx     — Badge de estado
+// src/components/ui/KpiCard.jsx   — Card de KPI para dashboards
+// src/components/patterns/DashboardShell.jsx — Shell de dashboard
+// src/components/patterns/ActivityTimeline.jsx — Timeline de actividad
+
+IMPORTANTE: Si importas CUALQUIERA de estos componentes, DEBES incluir el archivo en tu respuesta.
+No asumas que existen — TU los creas. Cada import = un archivo obligatorio en el JSON.
 
 Esto reduce DRASTICAMENTE el codigo total y mejora la consistencia.
 
@@ -180,7 +194,7 @@ Si el usuario pide ecommerce, tienda online, catalogo o tienda de productos:
    - Carrito lateral o pagina de carrito
    - Checkout funcional con resumen de compra
    - Vista de inventario o panel admin SI el usuario menciona stock, inventario, gestion o mas de 50 productos
-2. SIEMPRE crea src/data/mockData.js con:
+2. SIEMPRE incluye en src/lib/seed.js:
    - 8-12 productos realistas del nicho pedido
    - categorias
    - pedidos recientes
@@ -255,37 +269,190 @@ https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop (
 GENERAL: https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop (dashboard)
 
 ═══════════════════════════════════════════
-MANEJO DE DATOS
+MANEJO DE DATOS — PLURY BACKEND API
 ═══════════════════════════════════════════
 
-REGLA ABSOLUTA: NUNCA uses window.__PROJECT_API, window.api, ni ningun objeto global del navegador para datos.
-El proyecto corre en un sandbox aislado (WebContainer) donde NO hay backend ni APIs externas.
+REGLA: Todos los proyectos usan el backend real de Plury para datos PERSISTENTES.
+Los datos se guardan en base de datos — sobreviven refresh, sesiones, y son compartidos entre usuarios.
 
-SIEMPRE usa datos locales con useState/useReducer:
-- Crea un archivo src/data/mockData.jsx con datos de ejemplo REALISTAS del rubro (SIEMPRE .jsx si contiene JSX/iconos)
-- Importa esos datos en tus componentes: import { products, orders } from '../data/mockData'
-- Para CRUD: usa useState con los datos iniciales y funciones add/edit/delete locales
-- Para login/auth simulado: usa useState con un flag isLoggedIn y datos de usuario hardcodeados
-- Para persistencia: usa localStorage si necesitas que los datos sobrevivan un refresh
-- Si hay login, muestra credenciales demo o acceso rapido claramente dentro de la UI
+NUNCA uses window.__PROJECT_API ni objetos globales. Usa el modulo api que se INYECTA AUTOMATICAMENTE.
+El archivo src/lib/api.js YA EXISTE — NO lo generes, solo importalo:
 
-Ejemplo de datos mock para un dashboard:
-// src/data/mockData.jsx (usa .jsx si contiene iconos/JSX)
-export const salesData = [
-  { month: 'Ene', ventas: 42000, meta: 45000 },
-  { month: 'Feb', ventas: 38000, meta: 45000 },
-  // ...
-]
-export const recentOrders = [
-  { id: 'ORD-001', cliente: 'Maria Garcia', total: 1250, status: 'completado', fecha: '2026-03-07' },
-  // ...
-]
+import api from './lib/api'       // desde src/App.jsx
+import api from '../lib/api'      // desde src/components/X.jsx
+import api from '../../lib/api'   // desde src/components/ui/X.jsx
 
-Para ecommerce, usa una forma parecida:
-- products: id, nombre, categoria, precio, precioAnterior?, rating, stock, tallas?, colores?, image, descripcion
-- categories: nombre, slug, cantidad
-- orders: id, cliente, total, estado, fecha, items
-- salesData: solo si hay dashboard o inventario
+═══════════════════════════════════════════
+API DISPONIBLE (import api from '../lib/api')
+═══════════════════════════════════════════
+
+AUTH (registro/login con roles — primer usuario = admin):
+  const { data, error } = await api.register(email, password, displayName)
+  // data = { token, user: { id, email, displayName, role } }
+  // Roles: 'admin' (primer usuario), 'user', 'editor', 'viewer'
+  const { data, error } = await api.login(email, password)
+  api.logout()
+  const { data: user } = await api.getUser()  // usuario actual o null
+  const unsub = api.onAuthChange(callback)  // callback(user) en cada cambio
+
+ADMIN (solo role 'admin'):
+  const { data: users } = await api.listUsers()
+  await api.setUserRole(userId, 'editor')
+
+CRUD (datos persistentes — las tablas se crean automaticamente):
+  const { data } = await api.from('products').select()
+  const { data } = await api.from('products').select({ category: 'zapatos' })
+  const { data } = await api.from('products').select(null, { sort: 'price', order: 'asc', limit: 20 })
+  const { data } = await api.from('products').select(null, { mine: true })  // solo mis datos
+  const { data } = await api.from('products').select(null, { expand: 'categories' })  // auto-join por FK
+  const { data } = await api.from('products').selectById(id)
+  const { data } = await api.from('products').insert({ name: 'Nike Air', price: 99.99 })
+  const { data } = await api.from('products').update(id, { price: 89.99 })
+  const { data } = await api.from('products').delete(id)
+
+AGREGACIONES (para dashboards y KPIs):
+  const { data } = await api.from('orders').count()  // { count: 42 }
+  const { data } = await api.from('orders').count({ status: 'pending' })
+  const { data } = await api.from('orders').aggregate('total', 'sum')  // { value: 15420.50, count: 42 }
+  // Operaciones: sum, avg, min, max
+
+FILE UPLOAD:
+  const { data } = await api.uploadFile(file)  // { url, filename, size, mimetype }
+
+═══════════════════════════════════════════
+PATRON DE CARGA DE DATOS (useEffect + API)
+═══════════════════════════════════════════
+
+SIEMPRE carga datos del backend con useEffect. NUNCA hardcodees datos en useState como fuente principal.
+
+import { useState, useEffect } from 'react'
+import api from '../lib/api'
+
+function ProductsPage() {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { loadData() }, [])
+
+  const loadData = async () => {
+    const { data } = await api.from('products').select()
+    if (data) setItems(data)
+    setLoading(false)
+  }
+
+  const handleAdd = async (newItem) => {
+    const { data, error } = await api.from('products').insert(newItem)
+    if (error) return
+    setItems(prev => [data, ...prev])
+  }
+
+  const handleUpdate = async (id, changes) => {
+    const { data, error } = await api.from('products').update(id, changes)
+    if (error) return
+    setItems(prev => prev.map(i => i.id === id ? data : i))
+  }
+
+  const handleDelete = async (id) => {
+    const { error } = await api.from('products').delete(id)
+    if (error) return
+    setItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-64"><p>Cargando...</p></div>
+  // ... render con items
+}
+
+═══════════════════════════════════════════
+HOOK DE AUTH REUTILIZABLE
+═══════════════════════════════════════════
+
+Si el proyecto tiene autenticacion, SIEMPRE genera src/hooks/useAuth.js:
+
+import { useState, useEffect } from 'react'
+import api from '../lib/api'
+
+export function useAuth() {
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.getUser().then(({ data }) => {
+      setUser(data)
+      setLoading(false)
+    })
+    return api.onAuthChange(setUser)
+  }, [])
+
+  const login = async (email, password) => {
+    const { data, error } = await api.login(email, password)
+    return { data, error }
+  }
+
+  const register = async (email, password, displayName) => {
+    const { data, error } = await api.register(email, password, displayName)
+    return { data, error }
+  }
+
+  const logout = () => api.logout()
+
+  return { user, loading, login, register, logout }
+}
+
+═══════════════════════════════════════════
+DATOS INICIALES (SEED) — IMPORTANTE
+═══════════════════════════════════════════
+
+Para que el sistema tenga datos de ejemplo desde el primer uso, SIEMPRE genera src/lib/seed.js:
+
+import api from './api'
+
+const SEED_DATA = {
+  products: [
+    { name: 'Pizza Margarita', price: 12.99, category: 'Pizzas', stock: 25 },
+    { name: 'Pizza Pepperoni', price: 14.99, category: 'Pizzas', stock: 20 },
+    // ... 6-10 items REALISTAS del rubro
+  ],
+  categories: [
+    { name: 'Pizzas', slug: 'pizzas' },
+    // ...
+  ],
+}
+
+export async function seedIfEmpty() {
+  for (const [table, rows] of Object.entries(SEED_DATA)) {
+    const { data } = await api.from(table).count()
+    if (data && data.count === 0) {
+      await Promise.all(rows.map(row => api.from(table).insert(row)))
+    }
+  }
+}
+
+Llama seedIfEmpty en App.jsx al montar:
+const [ready, setReady] = useState(false)
+useEffect(() => { seedIfEmpty().then(() => setReady(true)) }, [])
+if (!ready) return <div>Preparando sistema...</div>
+
+REGLAS DE SEED:
+- SIEMPRE adapta los datos al rubro del usuario (restaurante, contabilidad, ecommerce, etc.)
+- Usa nombres, precios y datos REALISTAS en espanol
+- Incluye 6-12 items por tabla principal
+- Para imagenes usa URLs de Unsplash del rubro
+- El seed solo corre si la tabla esta vacia (no duplica datos en refresh)
+- Usa Promise.all para insertar en paralelo (mas rapido)
+
+REGLAS CRITICAS DE DATOS:
+1. NUNCA hardcodees datos en useState como fuente principal — siempre carga del API
+2. SIEMPRE maneja loading state mientras carga datos
+3. SIEMPRE maneja errores: if (error) return o muestra mensaje
+4. Para dashboards usa aggregate() y count() — no cargues todos los datos para sumar
+5. Para tablas con muchos datos usa limit y offset (paginacion)
+6. Despues de insert/update/delete, actualiza el estado local tambien (optimistic UI)
+7. NUNCA generes src/lib/api.js — ya se inyecta automaticamente
+8. Al importar api usa la ruta relativa CORRECTA segun la profundidad del archivo:
+   - Desde src/pages/X.jsx → import api from '../lib/api'
+   - Desde src/components/X.jsx → import api from '../lib/api'
+   - Desde src/components/landing/X.jsx → import api from '../../lib/api'
+   - Desde src/components/admin/users/X.jsx → import api from '../../../lib/api'
 
 ═══════════════════════════════════════════
 EJEMPLO DE RESPUESTA
@@ -304,7 +471,7 @@ Cuando el contexto incluya "MODO EXTENSION: ARCHIVOS DEL PROYECTO EXISTENTE":
 3. NO incluyas archivos que no cambiaron — el sistema los conserva automaticamente
 4. Mantene consistencia: mismos estilos, misma estructura de datos, mismos patrones
 5. Si agregas una nueva pagina/vista, actualiza App.jsx para incluirla en la navegacion
-6. Si agregas datos nuevos, extiende mockData.js (no crees un archivo de datos separado)
+6. Si agregas datos nuevos, extiende seed.js con las nuevas tablas y datos
 
 Ejemplo: si el usuario pide "agregar modulo de inventario" a un sistema existente:
 - Genera SOLO: src/components/inventory/InventoryPage.jsx, src/App.jsx (actualizado con nueva ruta)
@@ -336,20 +503,22 @@ Ejemplo de uso: si el task dice "Usa web_fetch para analizar https://ejemplo.com
 
 IMPORTANTE: web_fetch devuelve texto plano, no HTML. No intentes parsear el resultado como HTML. Usalo como contexto e inspiracion.
 
-CHECKLIST FINAL ANTES DE RESPONDER:
+CHECKLIST FINAL ANTES DE RESPONDER (OBLIGATORIO — revisa cada punto):
 1. Existe src/App.jsx
-2. Todos los imports relativos apuntan a archivos que si generaste
-3. No usaste dependencias nuevas
-4. La app puede renderizar aunque no haya backend
-5. Si es ecommerce, el catalogo y el carrito funcionan con estado local
-6. Si es inventario/admin, los graficos y tablas usan datos mock reales
-7. El preview no depende de variables globales ni de APIs externas
-8. Si es sistema de gestion con login, despues de entrar hay dashboard y minimo 3 modulos navegables con contenido
+2. **CRITICO** — Para CADA import relativo en CADA archivo, verifica que el archivo destino existe en tu JSON. Si un archivo importa "../ui/Input", entonces "src/components/ui/Input.jsx" DEBE estar en tu respuesta. Recorre TODOS los imports de TODOS los archivos y confirma que no falta ninguno.
+3. No usaste dependencias nuevas fuera del stack disponible
+4. NO generaste src/lib/api.js (se inyecta automaticamente)
+5. Todos los datos se cargan del API con useEffect + loading state
+6. Existe src/lib/seed.js con datos realistas del rubro
+7. Si hay auth, existe src/hooks/useAuth.js
+8. Si es sistema de gestion con login, despues de entrar hay dashboard y minimo 3 modulos navegables
 9. Ninguna vista principal queda vacia o con placeholders pobres
 10. Si usaste motion/react o gsap, los imports existen y las animaciones no rompen SSR ni el preview
 11. Existen componentes base reutilizables cuando el proyecto tiene varias vistas o secciones
 12. Existe al menos una capa clara de primitives ui/ y una capa de patterns/ cuando el proyecto es premium o complejo
 13. App.jsx no esta sobrecargado con cientos de lineas de layout repetido
+14. Cada operacion CRUD actualiza el estado local despues de la llamada API (optimistic UI)
+15. Para dashboards, usa aggregate() y count() en vez de cargar todos los datos
 
 IMPORTANTE: El JSON debe ser parseable. Escapa correctamente las comillas y newlines dentro del content.
 Siempre respondes en espanol. Siempre genera un proyecto completo y funcional.

@@ -12,6 +12,7 @@ import { resolveModelConfig, resolveAvailableConfig } from './model-resolver.js'
 import { executeToolCall } from './tools/executor.js'
 import { getNextVersionInfo } from './deliverable-versioning.js'
 import { parseProjectFilesFromText } from './project-files.js'
+import { DEV_API_CLIENT } from '../config/dev-api-client.js'
 const DELIVERABLE_TYPE_MAP: Record<string, 'report' | 'code' | 'design' | 'copy' | 'video'> = {
   seo: 'report',
   brand: 'design',
@@ -162,6 +163,35 @@ export async function refineStep(plan: ExecutingPlan, step: OrchestratorStep, us
             newFiles = merged
           }
         } catch { /* ignore */ }
+      }
+
+      // Auto-inject API client SDK with real config
+      const apiBase = process.env.CDN_BASE_URL || `http://localhost:${process.env.PORT ?? '3002'}`
+      const apiClientContent = DEV_API_CLIENT
+        .replace('%%API_BASE%%', apiBase)
+        .replace('%%PROJECT_ID%%', conversationId)
+      const apiFileIndex = newFiles.findIndex((f: any) => f.path === 'src/lib/api.js')
+      if (apiFileIndex >= 0) {
+        newFiles[apiFileIndex].content = apiClientContent
+      } else {
+        newFiles.push({ path: 'src/lib/api.js', content: apiClientContent })
+      }
+
+      // Auto-fix api import paths
+      for (const f of newFiles as any[]) {
+        if (f.path === 'src/lib/api.js' || !f.content) continue
+        const fileParts = f.path.split('/')
+        if (fileParts[0] !== 'src') continue
+        const fileDir = fileParts.slice(0, -1)
+        const apiDir = ['src', 'lib']
+        let common = 0
+        while (common < fileDir.length && common < apiDir.length && fileDir[common] === apiDir[common]) common++
+        const ups = fileDir.length - common
+        const correctPath = (ups === 0 ? './' : '../'.repeat(ups)) + apiDir.slice(common).concat(['api']).join('/')
+        f.content = f.content.replace(
+          /from\s+['"](\.\.?\/)+lib\/api(\.js)?['"]/g,
+          `from '${correctPath}'`
+        )
       }
 
       deliverableContent = JSON.stringify(newFiles)

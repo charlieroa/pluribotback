@@ -13,7 +13,7 @@ const modelCosts: Record<string, ModelCost> = {
 
 const toolCosts: Record<string, number> = {
   generate_image:      10,
-  generate_video:     200,
+  generate_video:      30,
   search_stock_photo:   0,
   search_web:           0,
   run_code:             0,

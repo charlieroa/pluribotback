@@ -20,6 +20,9 @@ import { validateProjectFiles } from './project-files.js'
 import { buildDevTemplateContext } from './dev-template-system.js'
 import { buildDevDesignPackContext } from './dev-design-packs.js'
 import { buildDevCanonicalExamplesContext } from './dev-canonical-examples.js'
+import { DEV_API_CLIENT } from '../config/dev-api-client.js'
+import { sendWebhookIfConfigured } from './webhook.js'
+import { getWhitelabelTheme, applyWhitelabelToHtml } from './whitelabel.js'
 const DELIVERABLE_TYPE_MAP: Record<string, 'report' | 'code' | 'design' | 'copy' | 'video'> = {
   seo: 'report',
   brand: 'design',
@@ -28,6 +31,26 @@ const DELIVERABLE_TYPE_MAP: Record<string, 'report' | 'code' | 'design' | 'copy'
   ads: 'copy',
   video: 'video',
   dev: 'code',
+}
+
+// Auto-register project asset when a deliverable is created within a project
+async function autoRegisterProjectAsset(conversationId: string, deliverableId: string, title: string, botType: string, type: string): Promise<void> {
+  try {
+    const conv = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { projectId: true } })
+    if (!conv?.projectId) return
+    const tl = title.toLowerCase()
+    const isBranding = ['logo', 'marca', 'brand', 'paleta', 'identidad', 'logotipo', 'isotipo'].some(k => tl.includes(k))
+    let category = 'other'
+    if (isBranding) category = 'logo'
+    else if (type === 'video') category = 'video'
+    else if (type === 'code') category = 'app'
+    else if (type === 'report') category = 'seo'
+    else if (botType === 'ads') category = 'ads'
+    else if (botType === 'content') category = 'copy'
+    else if (type === 'design') category = 'web'
+    await prisma.projectAsset.create({ data: { projectId: conv.projectId, conversationId, deliverableId, category, name: title } })
+    console.log(`[ProjectAsset] Auto-registered: ${category} — "${title}" for project ${conv.projectId}`)
+  } catch (err) { console.error('[ProjectAsset] Auto-register failed:', err) }
 }
 
 // Helper: create a 'todo' kanban task for a plan step
@@ -62,6 +85,50 @@ export async function createTodoKanbanTask(conversationId: string, step: Orchest
   })
 }
 
+// Auto-create a project when a multi-agent plan runs and no project exists yet
+async function autoCreateProjectIfNeeded(conversationId: string, userId: string, steps: OrchestratorStep[]): Promise<void> {
+  try {
+    // Check if conversation already belongs to a project
+    const conv = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { projectId: true, title: true }
+    })
+    if (conv?.projectId) return // already in a project
+
+    // Only auto-create for multi-agent plans (2+ different agent types)
+    const uniqueAgents = new Set(steps.map(s => s.agentId))
+    if (uniqueAgents.size < 2) return
+
+    // Extract a project name from the conversation title or first step
+    const projectName = conv?.title && conv.title !== 'Nueva conversación'
+      ? conv.title.slice(0, 60)
+      : steps[0]?.userDescription?.slice(0, 60) || 'Nuevo proyecto'
+
+    const project = await prisma.project.create({
+      data: {
+        userId,
+        name: projectName,
+      }
+    })
+
+    // Link conversation to the new project
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { projectId: project.id }
+    })
+
+    console.log(`[AutoProject] Created project "${projectName}" (${project.id}) for conversation ${conversationId}`)
+
+    // Notify frontend about the new project
+    broadcast(conversationId, {
+      type: 'project_created',
+      project: { id: project.id, name: projectName },
+    })
+  } catch (err) {
+    console.error('[AutoProject] Failed to auto-create project:', err)
+  }
+}
+
 // Start parallel execution: compute groups and run first group
 export async function startParallelExecution(
   conversationId: string,
@@ -70,6 +137,9 @@ export async function startParallelExecution(
   modelOverride?: string,
   imageUrl?: string
 ): Promise<void> {
+  // Auto-create project for multi-agent plans so Brand Context works from group 1
+  await autoCreateProjectIfNeeded(conversationId, userId, steps)
+
   broadcast(conversationId, {
     type: 'coordination_start',
     agents: steps.map(s => {
@@ -118,6 +188,7 @@ export async function executeCurrentGroup(plan: ExecutingPlan): Promise<void> {
     // All groups done
     await removeExecutingPlan(conversationId)
     broadcast(conversationId, { type: 'coordination_end' })
+    sendWebhookIfConfigured(conversationId).catch(console.error)
     suggestProjectIfNeeded(conversationId).catch(console.error)
     return
   }
@@ -184,6 +255,7 @@ export async function executeCurrentGroup(plan: ExecutingPlan): Promise<void> {
     // Non-visual last group → end
     await removeExecutingPlan(conversationId)
     broadcast(conversationId, { type: 'coordination_end' })
+    sendWebhookIfConfigured(conversationId).catch(console.error)
     suggestProjectIfNeeded(conversationId).catch(console.error)
     return
   }
@@ -200,14 +272,21 @@ export async function executeCurrentGroup(plan: ExecutingPlan): Promise<void> {
     // Broadcast for each visual step
     for (const vs of visualSteps) {
       const agentConfig = getAgentConfig(vs.agentId)
+      const desc = vs.userDescription ?? vs.task.slice(0, 60)
+      const nextDesc = firstNextStep?.userDescription ?? firstNextStep?.task?.slice(0, 60) ?? ''
+      const isPhased = desc.toLowerCase().includes('fase ')
+      const summaryText = isPhased
+        ? `${desc} — completado. ${nextDesc ? `Siguiente: ${nextDesc}.` : ''} Puedes pedir cambios o continuar.`
+        : visualSteps.length > 1
+          ? `${desc} — listo. Puedes pedir cambios o continuar.`
+          : 'Propuesta lista. Puedes pedir cambios o continuar.'
+
       broadcast(conversationId, {
         type: 'step_complete',
         agentId: vs.agentId,
         agentName: agentConfig?.name ?? vs.agentId,
         instanceId: vs.instanceId,
-        summary: visualSteps.length > 1
-          ? `${vs.userDescription ?? vs.task.slice(0, 60)} — listo. Puedes pedir cambios o continuar.`
-          : 'Propuesta lista. Puedes pedir cambios o continuar.',
+        summary: summaryText,
         nextAgentId: firstNextStep?.agentId,
         nextAgentName: nextAgentConfig?.name ?? firstNextStep?.agentId,
         nextInstanceId: firstNextStep?.instanceId,
@@ -271,6 +350,7 @@ export async function executeSingleStep(plan: ExecutingPlan, step: OrchestratorS
     }
 
     // Send SSE event to open the workflow editor with the prompt
+    console.log(`[Video] Broadcasting open_workflow for ${conversationId}, prompt: "${step.task.substring(0, 60)}..."`)
     broadcast(conversationId, {
       type: 'open_workflow',
       prompt: step.task,
@@ -391,7 +471,33 @@ ${prevDeliverable.content}
     }
   }
 
-  // Backend context disabled for dev agent (multi-file projects use local state)
+  // Auto-detect extension mode for follow-up messages (same instanceId as existing deliverable)
+  if (agentConfig.id === 'dev' && !devExtensionMode) {
+    const existingDeliverable = await prisma.deliverable.findFirst({
+      where: { conversationId, instanceId: step.instanceId, type: 'code' },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (existingDeliverable) {
+      devExtensionMode = true
+      contextBlock += `\n\n--- MODO EXTENSION: ARCHIVOS DEL PROYECTO EXISTENTE (${step.instanceId}) ---
+Debes tomar estos archivos como base y AGREGAR/MODIFICAR solo lo necesario.
+NO reescribas archivos que no necesiten cambios. Solo incluye en tu respuesta los archivos nuevos o modificados.
+El proyecto ya tiene la estructura de archivos listada abajo funcionando.
+
+ARCHIVOS EXISTENTES:
+${existingDeliverable.content}
+--- FIN ARCHIVOS EXISTENTES ---`
+      broadcast(conversationId, {
+        type: 'agent_thinking',
+        agentId: agentConfig.id,
+        agentName: agentConfig.name,
+        instanceId: step.instanceId,
+        step: `Extendiendo proyecto existente con nuevo modulo...`,
+      })
+      console.log(`[${agentConfig.name}:${step.instanceId}] Auto-detected extension mode from existing deliverable`)
+    }
+  }
+
   let backendContext = ''
   const devTemplateContext = agentConfig.id === 'dev'
     ? buildDevTemplateContext(step.task)
@@ -559,32 +665,90 @@ ${prevDeliverable.content}
       let files = parseProjectFilesFromText(projectJson).files
 
       // Extension mode: merge new/modified files with the previous deliverable's files
-      if (devExtensionMode && step.dependsOn) {
-        for (const depInstanceId of step.dependsOn) {
-          const depStep = plan.steps.find(s => s.instanceId === depInstanceId)
-          if (depStep?.agentId === 'dev') {
-            const prevDeliverable = await prisma.deliverable.findFirst({
-              where: { conversationId, instanceId: depInstanceId },
-              orderBy: { createdAt: 'desc' },
-            })
-            if (prevDeliverable) {
-              try {
-                const prevFiles = JSON.parse(prevDeliverable.content)
-                if (Array.isArray(prevFiles)) {
-                  const newFilePaths = new Set((files as any[]).map((f: any) => f.path))
-                  const merged = [
-                    ...prevFiles.filter((f: any) => !newFilePaths.has(f.path)),
-                    ...files,
-                  ]
-                  console.log(`[${agentConfig.name}:${step.instanceId}] Extension mode: merged ${(files as any[]).length} new/modified files with ${prevFiles.length} existing (total: ${merged.length})`)
-                  files = merged
+      if (devExtensionMode) {
+        // Try dependsOn-based merge first (multi-step plans)
+        let merged = false
+        if (step.dependsOn) {
+          for (const depInstanceId of step.dependsOn) {
+            const depStep = plan.steps.find(s => s.instanceId === depInstanceId)
+            if (depStep?.agentId === 'dev') {
+              const prevDeliverable = await prisma.deliverable.findFirst({
+                where: { conversationId, instanceId: depInstanceId },
+                orderBy: { createdAt: 'desc' },
+              })
+              if (prevDeliverable) {
+                try {
+                  const prevFiles = JSON.parse(prevDeliverable.content)
+                  if (Array.isArray(prevFiles)) {
+                    const newFilePaths = new Set((files as any[]).map((f: any) => f.path))
+                    files = [
+                      ...prevFiles.filter((f: any) => !newFilePaths.has(f.path)),
+                      ...files,
+                    ]
+                    console.log(`[${agentConfig.name}:${step.instanceId}] Extension mode (dependsOn): merged ${newFilePaths.size} new/modified files with ${prevFiles.length} existing (total: ${(files as any[]).length})`)
+                    merged = true
+                  }
+                } catch {
+                  console.warn(`[${agentConfig.name}:${step.instanceId}] Could not parse previous deliverable for merge`)
                 }
-              } catch {
-                console.warn(`[${agentConfig.name}:${step.instanceId}] Could not parse previous deliverable for merge`)
               }
             }
           }
         }
+
+        // Fallback: conversation-level merge (follow-up messages reusing same instanceId)
+        if (!merged) {
+          const prevDeliverable = await prisma.deliverable.findFirst({
+            where: { conversationId, instanceId: step.instanceId, type: 'code' },
+            orderBy: { createdAt: 'desc' },
+          })
+          if (prevDeliverable) {
+            try {
+              const prevFiles = JSON.parse(prevDeliverable.content)
+              if (Array.isArray(prevFiles)) {
+                const newFilePaths = new Set((files as any[]).map((f: any) => f.path))
+                files = [
+                  ...prevFiles.filter((f: any) => !newFilePaths.has(f.path)),
+                  ...files,
+                ]
+                console.log(`[${agentConfig.name}:${step.instanceId}] Extension mode (follow-up): merged ${newFilePaths.size} new/modified files with ${prevFiles.length} existing (total: ${(files as any[]).length})`)
+              }
+            } catch {
+              console.warn(`[${agentConfig.name}:${step.instanceId}] Could not parse previous deliverable for follow-up merge`)
+            }
+          }
+        }
+      }
+
+      // Auto-inject API client SDK with real config
+      const apiBase = process.env.CDN_BASE_URL || `http://localhost:${process.env.PORT ?? '3002'}`
+      const apiClientContent = DEV_API_CLIENT
+        .replace('%%API_BASE%%', apiBase)
+        .replace('%%PROJECT_ID%%', conversationId)
+      const apiFileIndex = (files as any[]).findIndex((f: any) => f.path === 'src/lib/api.js')
+      if (apiFileIndex >= 0) {
+        ;(files as any[])[apiFileIndex].content = apiClientContent
+      } else {
+        ;(files as any[]).push({ path: 'src/lib/api.js', content: apiClientContent })
+      }
+      console.log(`[${agentConfig.name}:${step.instanceId}] Injected API client (base: ${apiBase}, projectId: ${conversationId})`)
+
+      // Auto-fix api import paths: LLM often generates wrong relative depth
+      for (const f of files as any[]) {
+        if (f.path === 'src/lib/api.js' || !f.content) continue
+        const fileParts = f.path.split('/')
+        if (fileParts[0] !== 'src') continue
+        const fileDir = fileParts.slice(0, -1) // e.g. ['src', 'components', 'landing']
+        const apiDir = ['src', 'lib']
+        let common = 0
+        while (common < fileDir.length && common < apiDir.length && fileDir[common] === apiDir[common]) common++
+        const ups = fileDir.length - common
+        const correctPath = (ups === 0 ? './' : '../'.repeat(ups)) + apiDir.slice(common).concat(['api']).join('/')
+        // Fix any wrong relative import to lib/api or lib/api.js
+        f.content = f.content.replace(
+          /from\s+['"](\.\.?\/)+lib\/api(\.js)?['"]/g,
+          `from '${correctPath}'`
+        )
       }
 
       console.log(`[${agentConfig.name}:${step.instanceId}] Parsed ${files.length} project files: ${files.map((f: any) => f.path).join(', ')}`)
@@ -616,6 +780,8 @@ ${prevDeliverable.content}
           parentId: versionInfo.parentId,
         },
       })
+
+
 
       broadcast(conversationId, {
         type: 'deliverable',
@@ -807,9 +973,15 @@ ${prevDeliverable.content}
   }
 
   const cdnBase = process.env.CDN_BASE_URL || `http://localhost:${process.env.PORT ?? '3002'}`
-  const deliverableContent = deliverableContentRaw
+  let deliverableContent = deliverableContentRaw
     .replace(/src="\/uploads\//g, `src="${cdnBase}/uploads/`)
     .replace(/src='\/uploads\//g, `src='${cdnBase}/uploads/`)
+
+  // Apply white-label branding if configured
+  try {
+    const theme = await getWhitelabelTheme(plan.userId)
+    if (theme) deliverableContent = applyWhitelabelToHtml(deliverableContent, theme)
+  } catch { /* skip whitelabel on error */ }
 
   const versionInfo = await getNextVersionInfo(conversationId, step.instanceId)
   const deliverableId = uuid()
